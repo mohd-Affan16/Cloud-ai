@@ -10,6 +10,8 @@
 
 const menuButton =
     document.getElementById("menuButton");
+const newConversationButton =
+    document.getElementById("newConversationButton");
 
 const sideMenu =
     document.getElementById("sideMenu");
@@ -173,20 +175,16 @@ const themes = {
 /* =========================================================
    SIDE MENU
 ========================================================= */
-
 menuButton.addEventListener(
     "click",
     event => {
 
         event.stopPropagation();
 
-        dismissWelcome();
-
         sideMenu.classList.toggle("open");
 
     }
 );
-
 
 sideMenu.addEventListener(
     "click",
@@ -197,7 +195,88 @@ sideMenu.addEventListener(
     }
 );
 
+/* =========================================================
+   NEW CONVERSATION
+========================================================= */
 
+function startNewConversation() {
+
+    /*
+       Remove all existing chat messages.
+       The welcome section itself is kept.
+    */
+
+    const messages =
+        chat.querySelectorAll(".message");
+
+    messages.forEach(
+        message => {
+            message.remove();
+        }
+    );
+
+
+    /*
+       Show the welcome screen again.
+    */
+
+    welcome.classList.remove("hidden");
+
+
+    /*
+       Clear the message input.
+    */
+
+    messageInput.value = "";
+
+    autoResize();
+
+
+    /*
+       Close the menu.
+    */
+
+    sideMenu.classList.remove("open");
+
+
+    /*
+       Make sure the normal chat input
+       is visible.
+    */
+
+    inputContainer.classList.remove(
+        "page-hidden"
+    );
+
+
+    /*
+       Put the cursor back into the
+       message box.
+    */
+
+    messageInput.focus();
+
+
+    /*
+       Make sure the chat is at the top.
+    */
+
+    chat.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+newConversationButton.addEventListener(
+    "click",
+    event => {
+
+        event.stopPropagation();
+
+        startNewConversation();
+
+    }
+);
 chat.addEventListener(
     "click",
     () => {
@@ -329,7 +408,40 @@ function closePages() {
 
 }
 
+/* =========================================================
+   CLOSE PAGE WHEN CLICKING OUTSIDE
+========================================================= */
 
+document.addEventListener(
+    "click",
+    event => {
+
+        const openPage =
+            document.querySelector(".app-page.open");
+
+        if (!openPage) {
+            return;
+        }
+
+        /*
+           If the click happened inside
+           the currently open panel,
+           keep the panel open.
+        */
+
+        if (openPage.contains(event.target)) {
+            return;
+        }
+
+        /*
+           Click happened outside the panel.
+           Return to the existing conversation.
+        */
+
+        closePages();
+
+    }
+);
 
 /* =========================================================
    WELCOME
