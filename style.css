@@ -53,43 +53,23 @@ body {
 ========================================================= */
 
 .menu-button {
-
     position: fixed;
-
     top: 18px;
-
     left: 18px;
-
     width: 54px;
-
     height: 54px;
-
     z-index: 800;
 
     display: flex;
-
     align-items: center;
-
     justify-content: center;
 
     padding: 0;
 
-    border:
-        1px solid
-        rgba(255,255,255,0.20);
-
+    border: none;
     border-radius: 17px;
 
-    background:
-        rgba(255,255,255,0.08);
-
-    backdrop-filter:
-        blur(20px)
-        saturate(115%);
-
-    -webkit-backdrop-filter:
-        blur(20px)
-        saturate(115%);
+    background: #000000;
 
     color: #ffffff;
 
@@ -97,47 +77,27 @@ body {
 
     transition:
         background 0.2s ease,
-        border-color 0.2s ease,
         transform 0.2s ease;
-
 }
 
 .menu-button svg {
-
     width: 25px;
-
     height: 25px;
 
     fill: none;
-
     stroke: #ffffff;
-
     stroke-width: 2;
-
     stroke-linecap: round;
-
 }
 
 .menu-button:hover {
-
-    background:
-        rgba(255,255,255,0.14);
-
-    border-color:
-        rgba(255,255,255,0.30);
-
-    transform:
-        scale(1.03);
-
+    background: #000000;
+    transform: scale(1.03);
 }
 
 .menu-button:active {
-
-    transform:
-        scale(0.96);
-
+    transform: scale(0.96);
 }
-
 
 
 /* =========================================================
