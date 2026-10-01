@@ -465,54 +465,191 @@ function dismissWelcome() {
    CHAT
 ========================================================= */
 
-function sendMessage() {
+async function sendMessage() {
 
     const text =
         messageInput.value.trim();
 
-
     if (!text) {
-
         return;
-
     }
 
+    /*
+       Get the currently selected API.
+    */
+
+    const activeApi =
+        getActiveApi();
+
+    if (!activeApi) {
+
+        alert(
+            "Please add and select an API first."
+        );
+
+        return;
+    }
+
+    /*
+       Get the raw API key from memory.
+    */
+
+    const apiKey =
+        apiSecrets.get(
+            activeApi.id
+        );
+
+    if (!apiKey) {
+
+        alert(
+            "The API key for the selected API is not available."
+        );
+
+        return;
+    }
+
+    /*
+       Show the user's message.
+    */
 
     dismissWelcome();
-
 
     addMessage(
         text,
         "user"
     );
 
-
-    messageInput.value =
-        "";
-
+    messageInput.value = "";
 
     autoResize();
 
-
     /*
-       Temporary response until
-       backend/API integration.
+       Show a temporary loading message.
     */
 
-    setTimeout(
-        () => {
+    const loadingMessage =
+        addMessage(
+            "Thinking...",
+            "ai"
+        );
+
+    try {
+
+        /*
+           Hugging Face OpenAI-compatible API.
+        */
+
+        const response =
+            await fetch(
+                "https://router.huggingface.co/v1/chat/completions",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${apiKey}`
+                    },
+
+                    body: JSON.stringify({
+
+                        model:
+                            "openai/gpt-oss-120b:fastest",
+
+                        messages: [
+                            {
+                                role: "user",
+                                content: text
+                            }
+                        ]
+
+                    })
+                }
+            );
+
+        /*
+           Convert the response to JSON.
+        */
+
+        const data =
+            await response.json();
+
+        /*
+           Remove the loading message.
+        */
+
+        loadingMessage.remove();
+
+        /*
+           Handle API errors.
+        */
+
+        if (!response.ok) {
+
+            console.error(
+                "Hugging Face API error:",
+                data
+            );
 
             addMessage(
-                "This is a temporary AI response. The real API will be connected in the next phase.",
+                data?.error ||
+                "The API request failed.",
                 "ai"
             );
 
-        },
-        700
-    );
+            return;
+        }
+
+        /*
+           Extract the AI response.
+        */
+
+        const aiResponse =
+            data?.choices?.[0]?.message?.content;
+
+        if (!aiResponse) {
+
+            addMessage(
+                "The API returned an empty response.",
+                "ai"
+            );
+
+            return;
+        }
+
+        /*
+           Display the AI response.
+        */
+
+        addMessage(
+            aiResponse,
+            "ai"
+        );
+
+    }
+    catch (error) {
+
+        /*
+           Handle network / connection errors.
+        */
+
+        console.error(
+            "API request failed:",
+            error
+        );
+
+        loadingMessage.remove();
+
+        addMessage(
+            "Could not connect to the AI service. Check your API key and internet connection.",
+            "ai"
+        );
+
+    }
 
 }
-
 
 function addMessage(
     text,
@@ -547,6 +684,7 @@ function addMessage(
             "smooth"
 
     });
+        return message;
 
 }
 
