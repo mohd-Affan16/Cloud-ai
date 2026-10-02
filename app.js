@@ -196,87 +196,123 @@ sideMenu.addEventListener(
 );
 
 /* =========================================================
-   NEW CONVERSATION
+   THREAD / CHAT HISTORY ENGINE
 ========================================================= */
 
-function startNewConversation() {
+const threadsList = document.getElementById("threadsList");
 
-    /*
-       Remove all existing chat messages.
-       The welcome section itself is kept.
-    */
+let threads = JSON.parse(localStorage.getItem("cloud_ai_threads") || "[]");
+let activeThreadId = localStorage.getItem("cloud_ai_active_thread") || null;
 
-    const messages =
-        chat.querySelectorAll(".message");
+function saveThreadsToStorage() {
+    localStorage.setItem("cloud_ai_threads", JSON.stringify(threads));
+    localStorage.setItem("cloud_ai_active_thread", activeThreadId);
+}
 
-    messages.forEach(
-        message => {
-            message.remove();
-        }
-    );
+function getActiveThread() {
+    return threads.find(t => t.id === activeThreadId);
+}
 
+function clearChatMessages() {
+    const messages = chat.querySelectorAll(".message");
+    messages.forEach(m => m.remove());
+}
 
-    /*
-       Show the welcome screen again.
-    */
+function createNewThread() {
+    const newThread = {
+        id: "thread_" + Date.now(),
+        title: "New Conversation",
+        messages: []
+    };
 
+    threads.unshift(newThread);
+    activeThreadId = newThread.id;
+    saveThreadsToStorage();
+
+    clearChatMessages();
     welcome.classList.remove("hidden");
-
-
-    /*
-       Clear the message input.
-    */
-
     messageInput.value = "";
-
     autoResize();
 
-
-    /*
-       Close the menu.
-    */
-
+    renderThreads();
     sideMenu.classList.remove("open");
-
-
-    /*
-       Make sure the normal chat input
-       is visible.
-    */
-
-    inputContainer.classList.remove(
-        "page-hidden"
-    );
-
-
-    /*
-       Put the cursor back into the
-       message box.
-    */
-
     messageInput.focus();
-
-
-    /*
-       Make sure the chat is at the top.
-    */
-
-    chat.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
-
 }
-newConversationButton.addEventListener(
-    "click",
-    event => {
 
-        event.stopPropagation();
+function loadThread(id) {
+    const thread = threads.find(t => t.id === id);
+    if (!thread) return;
 
-        startNewConversation();
+    activeThreadId = id;
+    saveThreadsToStorage();
 
+    clearChatMessages();
+
+    if (thread.messages.length === 0) {
+        welcome.classList.remove("hidden");
+    } else {
+        welcome.classList.add("hidden");
+        thread.messages.forEach(msg => {
+            addMessage(msg.content, msg.role);
+        });
     }
-);
+
+    renderThreads();
+    sideMenu.classList.remove("open");
+}
+
+function deleteThread(id, event) {
+    event.stopPropagation();
+    threads = threads.filter(t => t.id !== id);
+
+    if (activeThreadId === id) {
+        if (threads.length > 0) {
+            activeThreadId = threads[0].id;
+            loadThread(activeThreadId);
+        } else {
+            createNewThread();
+            return;
+        }
+    }
+
+    saveThreadsToStorage();
+    renderThreads();
+}
+
+function renderThreads() {
+    if (!threadsList) return;
+    threadsList.innerHTML = "";
+
+    threads.forEach(thread => {
+        const item = document.createElement("div");
+        item.className = `thread-item ${thread.id === activeThreadId ? "active" : ""}`;
+        item.onclick = () => loadThread(thread.id);
+
+        item.innerHTML = `
+            <span class="thread-title">${escapeHtml(thread.title)}</span>
+            <button class="thread-delete-btn" title="Delete conversation">&times;</button>
+        `;
+
+        item.querySelector(".thread-delete-btn").onclick = (e) => deleteThread(thread.id, e);
+        threadsList.appendChild(item);
+    });
+}
+
+// Hook New Chat button
+newConversationButton.addEventListener("click", (event) => {
+    event.stopPropagation();
+    createNewThread();
+});
+
+// Initialize on page boot
+if (threads.length === 0) {
+    createNewThread();
+} else {
+    if (!activeThreadId || !threads.some(t => t.id === activeThreadId)) {
+        activeThreadId = threads[0].id;
+    }
+    loadThread(activeThreadId);
+}
 chat.addEventListener(
     "click",
     () => {
@@ -523,6 +559,16 @@ async function sendMessage() {
 
     autoResize();
 
+// Save user message to active thread
+    const currentThread = getActiveThread();
+    if (currentThread) {
+        if (currentThread.messages.length === 0) {
+            currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
+        }
+        currentThread.messages.push({ role: "user", content: text });
+        saveThreadsToStorage();
+        renderThreads();
+    }   
     /*
        Show a temporary loading message.
     */
@@ -627,7 +673,11 @@ async function sendMessage() {
             aiResponse,
             "ai"
         );
-
+// Save AI response to active thread
+        if (currentThread) {
+            currentThread.messages.push({ role: "ai", content: aiResponse });
+            saveThreadsToStorage();
+        }
     }
     catch (error) {
 
