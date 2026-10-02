@@ -175,25 +175,32 @@ const themes = {
 /* =========================================================
    SIDE MENU
 ========================================================= */
-menuButton.addEventListener(
-    "click",
-    event => {
 
-        event.stopPropagation();
+if (menuButton) {
+    menuButton.addEventListener(
+        "click",
+        event => {
 
-        sideMenu.classList.toggle("open");
+            event.stopPropagation();
 
-    }
-);
+            if (sideMenu) sideMenu.classList.toggle("open");
 
-sideMenu.addEventListener(
-    "click",
-    event => {
+        }
+    );
+}
 
-        event.stopPropagation();
+if (sideMenu) {
+    sideMenu.addEventListener(
+        "click",
+        event => {
 
-    }
-);
+            event.stopPropagation();
+
+        }
+    );
+}
+
+
 
 /* =========================================================
    NEW CONVERSATION
@@ -206,99 +213,107 @@ function startNewConversation() {
        The welcome section itself is kept.
     */
 
-    const messages =
-        chat.querySelectorAll(".message");
+    if (chat) {
+        const messages =
+            chat.querySelectorAll(".message");
 
-    messages.forEach(
-        message => {
-            message.remove();
-        }
-    );
+        messages.forEach(
+            message => {
+                message.remove();
+            }
+        );
+    }
 
 
     /*
        Show the welcome screen again.
     */
 
-    welcome.classList.remove("hidden");
+    if (welcome) {
+        welcome.classList.remove("hidden");
+    }
 
 
     /*
        Clear the message input.
     */
 
-    messageInput.value = "";
-
-    autoResize();
+    if (messageInput) {
+        messageInput.value = "";
+        autoResize();
+        messageInput.focus();
+    }
 
 
     /*
        Close the menu.
     */
 
-    sideMenu.classList.remove("open");
+    if (sideMenu) {
+        sideMenu.classList.remove("open");
+    }
 
 
     /*
-       Make sure the normal chat input
-       is visible.
+       Make sure the normal chat input is visible.
     */
 
-    inputContainer.classList.remove(
-        "page-hidden"
-    );
-
-
-    /*
-       Put the cursor back into the
-       message box.
-    */
-
-    messageInput.focus();
+    if (inputContainer) {
+        inputContainer.classList.remove("page-hidden");
+    }
 
 
     /*
        Make sure the chat is at the top.
     */
 
-    chat.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
+    if (chat) {
+        chat.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    }
 
 }
-newConversationButton.addEventListener(
-    "click",
-    event => {
 
-        event.stopPropagation();
+if (newConversationButton) {
+    newConversationButton.addEventListener(
+        "click",
+        event => {
 
-        startNewConversation();
+            event.stopPropagation();
 
-    }
-);
-chat.addEventListener(
-    "click",
-    () => {
+            startNewConversation();
 
-        sideMenu.classList.remove("open");
+        }
+    );
+}
 
-        dismissWelcome();
+if (chat) {
+    chat.addEventListener(
+        "click",
+        () => {
 
-    }
-);
+            if (sideMenu) sideMenu.classList.remove("open");
 
+            dismissWelcome();
 
-inputContainer.addEventListener(
-    "click",
-    () => {
+        }
+    );
+}
 
-        sideMenu.classList.remove("open");
+if (inputContainer) {
+    inputContainer.addEventListener(
+        "click",
+        () => {
 
-        dismissWelcome();
+            if (sideMenu) sideMenu.classList.remove("open");
 
-    }
-);
+            dismissWelcome();
+
+        }
+    );
+}
 
 
 
@@ -329,9 +344,9 @@ menuItems.forEach(
 
 function openPage(pageId) {
 
-    sideMenu.classList.remove("open");
+    if (sideMenu) sideMenu.classList.remove("open");
 
-    apiSwitcherMenu.classList.remove("open");
+    if (apiSwitcherMenu) apiSwitcherMenu.classList.remove("open");
 
 
     pages.forEach(
@@ -367,9 +382,9 @@ function openPage(pageId) {
        Settings / Themes / API is open.
     */
 
-    inputContainer.classList.add(
-        "page-hidden"
-    );
+    if (inputContainer) {
+        inputContainer.classList.add("page-hidden");
+    }
 
 }
 
@@ -402,11 +417,13 @@ function closePages() {
     );
 
 
-    inputContainer.classList.remove(
-        "page-hidden"
-    );
+    if (inputContainer) {
+        inputContainer.classList.remove("page-hidden");
+    }
 
 }
+
+
 
 /* =========================================================
    CLOSE PAGE WHEN CLICKING OUTSIDE
@@ -443,6 +460,8 @@ document.addEventListener(
     }
 );
 
+
+
 /* =========================================================
    WELCOME
 ========================================================= */
@@ -466,6 +485,8 @@ function dismissWelcome() {
 ========================================================= */
 
 async function sendMessage() {
+
+    if (!messageInput) return;
 
     const text =
         messageInput.value.trim();
@@ -580,7 +601,7 @@ async function sendMessage() {
            Remove the loading message.
         */
 
-        loadingMessage.remove();
+        if (loadingMessage) loadingMessage.remove();
 
         /*
            Handle API errors.
@@ -640,7 +661,7 @@ async function sendMessage() {
             error
         );
 
-        loadingMessage.remove();
+        if (loadingMessage) loadingMessage.remove();
 
         addMessage(
             "Could not connect to the AI service. Check your API key and internet connection.",
@@ -655,6 +676,8 @@ function addMessage(
     text,
     type
 ) {
+
+    if (!chat) return null;
 
     const message =
         document.createElement("div");
@@ -684,57 +707,57 @@ function addMessage(
             "smooth"
 
     });
-        return message;
+
+    return message;
 
 }
 
 
-sendButton.addEventListener(
-    "click",
-    sendMessage
-);
+if (sendButton) {
+    sendButton.addEventListener(
+        "click",
+        sendMessage
+    );
+}
 
 
 
 /* =========================================================
-   ENTER TO SEND
+   ENTER TO SEND & AUTO RESIZE
 ========================================================= */
 
-messageInput.addEventListener(
-    "keydown",
-    event => {
+if (messageInput) {
+    messageInput.addEventListener(
+        "keydown",
+        event => {
 
-        if (
-            event.key === "Enter" &&
-            !event.shiftKey
-        ) {
+            if (
+                event.key === "Enter" &&
+                !event.shiftKey
+            ) {
 
-            event.preventDefault();
+                event.preventDefault();
 
-            sendMessage();
+                sendMessage();
+
+            }
 
         }
+    );
 
-    }
-);
-
-
-
-/* =========================================================
-   TEXTAREA AUTO RESIZE
-========================================================= */
-
-messageInput.addEventListener(
-    "input",
-    autoResize
-);
+    messageInput.addEventListener(
+        "input",
+        autoResize
+    );
+}
 
 
 function autoResize() {
 
+    if (!messageInput) return;
+
     messageInput.style.height =
         "auto";
-
 
     messageInput.style.height =
         Math.min(
@@ -781,8 +804,10 @@ function changeTheme(themeName) {
     }
 
 
-    chat.style.backgroundImage =
-        `url("${selected.image}")`;
+    if (chat) {
+        chat.style.backgroundImage =
+            `url("${selected.image}")`;
+    }
 
 
     document.documentElement.style
@@ -826,8 +851,10 @@ if (
     themes[savedTheme]
 ) {
 
-    chat.style.backgroundImage =
-        `url("${themes[savedTheme].image}")`;
+    if (chat) {
+        chat.style.backgroundImage =
+            `url("${themes[savedTheme].image}")`;
+    }
 
 
     document.documentElement.style
@@ -892,8 +919,10 @@ if (customThemeInput) {
                         reader.result;
 
 
-                    chat.style.backgroundImage =
-                        `url("${image}")`;
+                    if (chat) {
+                        chat.style.backgroundImage =
+                            `url("${image}")`;
+                    }
 
 
                     localStorage.setItem(
@@ -937,36 +966,23 @@ if (
     savedTheme === "custom"
 ) {
 
-    chat.style.backgroundImage =
-        `url("${savedCustomTheme}")`;
+    if (chat) {
+        chat.style.backgroundImage =
+            `url("${savedCustomTheme}")`;
+    }
 
 }
 
 
 
 /* =========================================================
-   API DATA
+   API DATA & METADATA
 ========================================================= */
-
-/*
-   IMPORTANT:
-
-   Raw API keys are NOT stored in localStorage.
-
-   They are kept only in this in-memory Map
-   until the backend is implemented.
-*/
 
 const apiSecrets =
     new Map();
 
 let apiEntries = [];
-
-
-
-/* =========================================================
-   LOAD API METADATA
-========================================================= */
 
 let savedApiMetadata = [];
 
@@ -1035,54 +1051,49 @@ renderApiSwitcher();
 
 
 /* =========================================================
-   CREATE API
+   CREATE & SAVE API
 ========================================================= */
 
-createApiButton.addEventListener(
-    "click",
-    () => {
+if (createApiButton) {
+    createApiButton.addEventListener(
+        "click",
+        () => {
 
-        const name =
-            apiNameInput.value.trim();
+            const name =
+                apiNameInput ? apiNameInput.value.trim() : "";
 
-        const key =
-            apiKeyInput.value.trim();
+            const key =
+                apiKeyInput ? apiKeyInput.value.trim() : "";
 
 
-        if (
-            !name ||
-            !key
-        ) {
+            if (
+                !name ||
+                !key
+            ) {
 
-            alert(
-                "Enter both the API name and API key."
+                alert(
+                    "Enter both the API name and API key."
+                );
+
+                return;
+
+            }
+
+
+            saveApi(
+                name,
+                key
             );
 
-            return;
+
+            if (apiNameInput) apiNameInput.value = "";
+
+            if (apiKeyInput) apiKeyInput.value = "";
 
         }
+    );
+}
 
-
-        saveApi(
-            name,
-            key
-        );
-
-
-        apiNameInput.value =
-            "";
-
-        apiKeyInput.value =
-            "";
-
-    }
-);
-
-
-
-/* =========================================================
-   SAVE API
-========================================================= */
 
 function saveApi(
     name,
@@ -1093,7 +1104,7 @@ function saveApi(
         Date.now().toString() +
         Math.random()
             .toString(36)
-            .slice(2,7);
+            .slice(2, 7);
 
 
     const maskLength =
@@ -1134,11 +1145,6 @@ function saveApi(
 }
 
 
-
-/* =========================================================
-   SAVE SAFE API METADATA
-========================================================= */
-
 function saveApiMetadata() {
 
     const metadata =
@@ -1168,11 +1174,6 @@ function saveApiMetadata() {
 
 }
 
-
-
-/* =========================================================
-   NORMALIZE ACTIVE API
-========================================================= */
 
 function normalizeActiveApi() {
 
@@ -1209,11 +1210,6 @@ function normalizeActiveApi() {
     );
 
 
-    /*
-       If metadata somehow has APIs
-       but none is active, activate first.
-    */
-
     if (
         apiEntries.length > 0 &&
         !apiEntries.some(
@@ -1229,11 +1225,6 @@ function normalizeActiveApi() {
 }
 
 
-
-/* =========================================================
-   GET ACTIVE API
-========================================================= */
-
 function getActiveApi() {
 
     return apiEntries.find(
@@ -1245,843 +1236,4 @@ function getActiveApi() {
 
 
 
-/* =========================================================
-   RENDER API LIST
-========================================================= */
-
-function renderApiEntries() {
-
-    apiList.innerHTML =
-        "";
-
-
-    const sortedEntries =
-        [...apiEntries].sort(
-            (a, b) => {
-
-                if (
-                    a.active &&
-                    !b.active
-                ) {
-
-                    return -1;
-
-                }
-
-                if (
-                    !a.active &&
-                    b.active
-                ) {
-
-                    return 1;
-
-                }
-
-                return 0;
-
-            }
-        );
-
-
-    sortedEntries.forEach(
-        entry => {
-
-            renderApiEntry(
-                entry
-            );
-
-        }
-    );
-
-}
-
-
-
-/* =========================================================
-   RENDER ONE API
-========================================================= */
-
-function renderApiEntry(
-    entry
-) {
-
-    const card =
-        document.createElement("div");
-
-
-    card.className =
-        "api-card saved-api-card";
-
-
-    const mask =
-        "#".repeat(
-            entry.maskLength
-        );
-
-
-    card.innerHTML = `
-
-        <div class="api-field">
-
-            <div class="api-field-label">
-                Name
-            </div>
-
-            <div class="api-value-box">
-                ${escapeHtml(entry.name)}
-            </div>
-
-        </div>
-
-
-        <div class="api-field">
-
-            <div class="api-field-label">
-                API Key
-            </div>
-
-            <div class="api-value-box api-key-mask">
-                ${mask}
-            </div>
-
-        </div>
-
-
-        <div class="api-status-row">
-
-            <div class="
-                api-status
-                ${entry.active ? "active" : "inactive"}
-            ">
-
-                <span class="status-dot"></span>
-
-                <span>
-                    ${entry.active ? "Active" : "Inactive"}
-                </span>
-
-            </div>
-
-
-            <div class="api-actions">
-
-                <button
-                    class="api-edit"
-                    type="button"
-                >
-                    Edit
-                </button>
-
-
-                <button
-                    class="api-delete"
-                    type="button"
-                >
-                    Delete
-                </button>
-
-
-                <button
-                    class="
-                        api-switch
-                        ${entry.active ? "" : "inactive-switch"}
-                    "
-                    type="button"
-                >
-                    ${entry.active ? "Active" : "Switch"}
-                </button>
-
-            </div>
-
-        </div>
-
-    `;
-
-
-    apiList.appendChild(card);
-
-
-
-    /* SWITCH */
-
-    const switchButton =
-        card.querySelector(
-            ".api-switch"
-        );
-
-
-    switchButton.addEventListener(
-        "click",
-        () => {
-
-            if (!entry.active) {
-
-                activateApi(
-                    entry.id
-                );
-
-            }
-
-        }
-    );
-
-
-
-    /* DELETE */
-
-    const deleteButton =
-        card.querySelector(
-            ".api-delete"
-        );
-
-
-    deleteButton.addEventListener(
-        "click",
-        () => {
-
-            deleteApi(
-                entry.id
-            );
-
-        }
-    );
-
-
-
-    /* EDIT */
-
-    const editButton =
-        card.querySelector(
-            ".api-edit"
-        );
-
-
-    editButton.addEventListener(
-        "click",
-        () => {
-
-            editApi(
-                entry,
-                card
-            );
-
-        }
-    );
-
-}
-
-
-
-/* =========================================================
-   ACTIVATE API
-========================================================= */
-
-function activateApi(id) {
-
-    apiEntries.forEach(
-        entry => {
-
-            entry.active =
-                entry.id === id;
-
-        }
-    );
-
-
-    saveApiMetadata();
-
-    renderApiEntries();
-
-    renderApiSwitcher();
-
-}
-
-
-
-/* =========================================================
-   DELETE API
-========================================================= */
-
-function deleteApi(id) {
-
-    const api =
-        apiEntries.find(
-            entry =>
-                entry.id === id
-        );
-
-
-    if (!api) {
-
-        return;
-
-    }
-
-
-    apiToDelete =
-        id;
-
-
-    deleteModalText.textContent =
-        `Are you sure you want to delete "${api.name}"?`;
-
-
-    deleteModal.classList.add(
-        "open"
-    );
-
-
-    deleteModal.setAttribute(
-        "aria-hidden",
-        "false"
-    );
-
-}
-
-
-
-/* =========================================================
-   CONFIRM DELETE
-========================================================= */
-
-confirmDeleteButton.addEventListener(
-    "click",
-    () => {
-
-        if (!apiToDelete) {
-
-            return;
-
-        }
-
-
-        const id =
-            apiToDelete;
-
-
-        const deletedApi =
-            apiEntries.find(
-                entry =>
-                    entry.id === id
-            );
-
-
-        const wasActive =
-            deletedApi?.active;
-
-
-        apiSecrets.delete(id);
-
-
-        apiEntries =
-            apiEntries.filter(
-                entry =>
-                    entry.id !== id
-            );
-
-
-        /*
-           If the active API was deleted,
-           make the first remaining API active.
-        */
-
-        if (
-            wasActive &&
-            apiEntries.length > 0
-        ) {
-
-            apiEntries.forEach(
-                entry => {
-
-                    entry.active =
-                        false;
-
-                }
-            );
-
-
-            apiEntries[0].active =
-                true;
-
-        }
-
-
-        saveApiMetadata();
-
-        renderApiEntries();
-
-        renderApiSwitcher();
-
-        closeDeleteModal();
-
-    }
-);
-
-
-
-/* =========================================================
-   CLOSE DELETE MODAL
-========================================================= */
-
-cancelDeleteButton.addEventListener(
-    "click",
-    closeDeleteModal
-);
-
-
-deleteModal.addEventListener(
-    "click",
-    event => {
-
-        if (
-            event.target ===
-            deleteModal
-        ) {
-
-            closeDeleteModal();
-
-        }
-
-    }
-);
-
-
-function closeDeleteModal() {
-
-    apiToDelete =
-        null;
-
-
-    deleteModal.classList.remove(
-        "open"
-    );
-
-
-    deleteModal.setAttribute(
-        "aria-hidden",
-        "true"
-    );
-
-}
-
-
-
-/* =========================================================
-   EDIT API
-========================================================= */
-
-function editApi(
-    entry,
-    card
-) {
-
-    const currentKey =
-        apiSecrets.get(
-            entry.id
-        ) || "";
-
-
-    card.innerHTML = `
-
-        <div class="api-field">
-
-            <div class="api-field-label">
-                Name
-            </div>
-
-            <input
-                type="text"
-                class="edit-name-input"
-                value="${escapeHtml(entry.name)}"
-            >
-
-        </div>
-
-
-        <div class="api-field">
-
-            <div class="api-field-label">
-                API Key
-            </div>
-
-            <input
-                type="password"
-                class="edit-key-input"
-                placeholder="Leave empty to keep current key"
-                autocomplete="off"
-            >
-
-        </div>
-
-
-        <div class="api-edit-controls">
-
-            <button
-                class="api-cancel-edit"
-                type="button"
-            >
-                Cancel
-            </button>
-
-
-            <button
-                class="api-save-edit"
-                type="button"
-            >
-                Save
-            </button>
-
-        </div>
-
-    `;
-
-
-    const saveButton =
-        card.querySelector(
-            ".api-save-edit"
-        );
-
-
-    saveButton.addEventListener(
-        "click",
-        () => {
-
-            const newName =
-                card.querySelector(
-                    ".edit-name-input"
-                ).value.trim();
-
-
-            const newKey =
-                card.querySelector(
-                    ".edit-key-input"
-                ).value.trim();
-
-
-            if (!newName) {
-
-                alert(
-                    "API name cannot be empty."
-                );
-
-                return;
-
-            }
-
-
-            entry.name =
-                newName;
-
-
-            if (newKey) {
-
-                apiSecrets.set(
-                    entry.id,
-                    newKey
-                );
-
-            }
-            else if (currentKey) {
-
-                apiSecrets.set(
-                    entry.id,
-                    currentKey
-                );
-
-            }
-
-
-            saveApiMetadata();
-
-            renderApiEntries();
-
-            renderApiSwitcher();
-
-        }
-    );
-
-
-    const cancelButton =
-        card.querySelector(
-            ".api-cancel-edit"
-        );
-
-
-    cancelButton.addEventListener(
-        "click",
-        () => {
-
-            renderApiEntries();
-
-        }
-    );
-
-}
-
-
-
-/* =========================================================
-   API SWITCHER
-========================================================= */
-
-apiSwitcherButton.addEventListener(
-    "click",
-    event => {
-
-        event.stopPropagation();
-
-        renderApiSwitcher();
-
-        apiSwitcherMenu.classList.toggle(
-            "open"
-        );
-
-    }
-);
-
-
-apiSwitcherMenu.addEventListener(
-    "click",
-    event => {
-
-        event.stopPropagation();
-
-    }
-);
-
-
-document.addEventListener(
-    "click",
-    () => {
-
-        apiSwitcherMenu.classList.remove(
-            "open"
-        );
-
-    }
-);
-
-
-
-/* =========================================================
-   RENDER API SWITCHER
-========================================================= */
-
-function renderApiSwitcher() {
-
-    apiSwitcherList.innerHTML =
-        "";
-
-
-    const activeApi =
-        getActiveApi();
-
-
-    if (activeApi) {
-
-        apiSwitcherCurrent.textContent =
-            "Using: " +
-            activeApi.name;
-
-    }
-    else {
-
-        apiSwitcherCurrent.textContent =
-            "No API selected";
-
-    }
-
-
-    if (
-        apiEntries.length === 0
-    ) {
-
-        apiSwitcherList.innerHTML = `
-
-            <div class="api-switcher-empty">
-                No APIs added yet.
-            </div>
-
-        `;
-
-        return;
-
-    }
-
-
-    const sortedApis =
-        [...apiEntries].sort(
-            (a, b) => {
-
-                if (
-                    a.active &&
-                    !b.active
-                ) {
-
-                    return -1;
-
-                }
-
-                if (
-                    !a.active &&
-                    b.active
-                ) {
-
-                    return 1;
-
-                }
-
-                return 0;
-
-            }
-        );
-
-
-    sortedApis.forEach(
-        api => {
-
-            const option =
-                document.createElement(
-                    "div"
-                );
-
-
-            option.className =
-                "api-switcher-option";
-
-
-            if (api.active) {
-
-                option.classList.add(
-                    "selected"
-                );
-
-            }
-
-
-            option.innerHTML = `
-
-                <span
-                    class="api-switcher-dot"
-                ></span>
-
-                <span
-                    class="api-switcher-name"
-                >
-                    ${escapeHtml(api.name)}
-                </span>
-
-                <button
-                    class="
-                        api-switch-button
-                        ${api.active ? "active" : ""}
-                    "
-                    type="button"
-                    ${api.active ? "disabled" : ""}
-                >
-                    ${api.active ? "Active" : "Switch"}
-                </button>
-
-            `;
-
-
-            const switchButton =
-                option.querySelector(
-                    ".api-switch-button"
-                );
-
-
-            if (!api.active) {
-
-                switchButton.addEventListener(
-                    "click",
-                    event => {
-
-                        event.stopPropagation();
-
-                        activateApi(
-                            api.id
-                        );
-
-                        renderApiSwitcher();
-
-                    }
-                );
-
-            }
-
-
-            apiSwitcherList.appendChild(
-                option
-            );
-
-        }
-    );
-
-}
-
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function escapeHtml(value) {
-
-    return String(value)
-
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-
-}
-
-
-
-/* =========================================================
-   ESCAPE KEY
-========================================================= */
-
-document.addEventListener(
-    "keydown",
-    event => {
-
-        if (
-            event.key === "Escape"
-        ) {
-
-            sideMenu.classList.remove(
-                "open"
-            );
-
-            apiSwitcherMenu.classList.remove(
-                "open"
-            );
-
-            closeDeleteModal();
-
-        }
-
-    }
-);
+/* ==============================

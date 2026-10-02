@@ -1,31 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Cloud Hybrid AI</title>
-
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Hybrid AI - Login</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
-
 <body>
+ HEAD
+    <div class="login-container">
+        <h2>Cloud Hybrid AI</h2>
+        <p class="subtitle">Welcome Back</p>
+
+        <form id="loginForm">
+            <div class="input-group">
+                <label for="username">Email or Username</label>
+                <input type="text" id="username" placeholder="Enter your email or username" required>
+            </div>
+
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+
+            <div class="form-actions">
+                <a href="#" class="forgot-password">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-primary">Sign In</button>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <button type="button" class="btn-google">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google Logo">
+                Continue with Google
 
 
-    <!-- =====================================================
+
+    <!-- 
          HAMBURGER
-    ====================================================== -->
+    -->
 
     <button
         id="menuButton"
@@ -47,9 +63,9 @@
 
 
 
-    <!-- =====================================================
+    <!-- 
          SIDE MENU
-    ====================================================== -->
+     -->
 
     <aside
         id="sideMenu"
@@ -194,9 +210,9 @@
 
 
 
-    <!-- =====================================================
+    <!-- 
          CHAT
-    ====================================================== -->
+    -->
 
     <main id="chat">
 
@@ -220,9 +236,9 @@
 
 
 
-    <!-- =====================================================
+    <!-- 
          MESSAGE INPUT
-    ====================================================== -->
+    -->
 
     <div
         id="inputContainer"
@@ -253,586 +269,17 @@
                     ⇄
                 </span>
 
+ d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
             </button>
 
-
-            <div
-                id="apiSwitcherMenu"
-                class="api-switcher-menu"
-            >
-
-                <div class="api-switcher-title">
-                    API
-                </div>
-
-                <div
-                    id="apiSwitcherCurrent"
-                    class="api-switcher-current"
-                >
-                    No API selected
-                </div>
-
-                <div
-                    id="apiSwitcherList"
-                    class="api-switcher-list"
-                ></div>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- SEND -->
-
-        <button
-            id="sendButton"
-            class="send-button"
-            type="button"
-            aria-label="Send message"
-            title="Send"
-        >
-
-            <svg
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-            >
-                <path
-                    d="M3 20.5L21 12 3 3.5 3.8 10.2 15 12 3.8 13.8 3 20.5Z"
-                ></path>
-            </svg>
-
-        </button>
-
-    </div>
-
-
-
-    <!-- =====================================================
-         SETTINGS PAGE
-    ====================================================== -->
-
-    <section
-        id="settingsPage"
-        class="app-page"
-    >
-
-        <div class="page-header">
-
-            <button
-                class="back-button"
-                type="button"
-            >
-                ←
-            </button>
-
-            <h1>
-                Settings
-            </h1>
-
-        </div>
-
-
-        <div class="glass-card settings-card">
-
-            <h2>
-                Appearance
-            </h2>
-
-
-            <div class="setting-row">
-
-                <div>
-
-                    <strong>
-                        Glass Interface
-                    </strong>
-
-                    <p>
-                        Use the translucent glass interface.
-                    </p>
-
-                </div>
-
-                <input
-                    type="checkbox"
-                    checked
-                >
-
-            </div>
-
-
-            <div class="setting-row">
-
-                <div>
-
-                    <strong>
-                        Animations
-                    </strong>
-
-                    <p>
-                        Enable interface animations.
-                    </p>
-
-                </div>
-
-                <input
-                    type="checkbox"
-                    checked
-                >
-
-            </div>
-
-
-            <h2>
-                Chat
-            </h2>
-
-
-            <div class="setting-row">
-
-                <div>
-
-                    <strong>
-                        Enter to Send
-                    </strong>
-
-                    <p>
-                        Press Enter to send a message.
-                    </p>
-
-                </div>
-
-                <input
-                    id="enterToSend"
-                    type="checkbox"
-                    checked
-                >
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-
-    <!-- =====================================================
-         THEMES PAGE
-    ====================================================== -->
-
-    <section
-        id="themesPage"
-        class="app-page"
-    >
-
-        <div class="page-header">
-
-            <button
-                class="back-button"
-                type="button"
-            >
-                ←
-            </button>
-
-            <h1>
-                Themes
-            </h1>
-
-        </div>
-
-
-        <p class="page-description">
-            Choose how your assistant looks.
-        </p>
-
-
-
-        <!-- THEME SCROLL -->
-
-        <div class="theme-scroll-wrapper">
-
-            <div class="theme-grid">
-
-
-                <!-- PURPLE -->
-
-                <button
-                    class="theme-card"
-                    data-theme="purple"
-                    type="button"
-                >
-
-                    <div
-                        class="theme-preview"
-                        style="background-image:url('assets/themes/purple.jpeg')"
-                    >
-
-                        <div class="preview-overlay"></div>
-
-                        <div class="preview-system">
-                            ● System · Ready
-                        </div>
-
-                        <div class="preview-ai">
-                            Hi! How can I help?
-                        </div>
-
-                        <div class="preview-user">
-                            Show me something cool.
-                        </div>
-
-                        <div class="preview-ai preview-small">
-                            Sure — let's build something.
-                        </div>
-
-                    </div>
-
-
-                    <div class="theme-name">
-
-                        <span class="theme-dot"></span>
-
-                        Purple
-
-                    </div>
-
-                </button>
-
-
-
-                <!-- GREEN -->
-
-                <button
-                    class="theme-card"
-                    data-theme="green"
-                    type="button"
-                >
-
-                    <div
-                        class="theme-preview"
-                        style="background-image:url('assets/themes/green.jpeg')"
-                    >
-
-                        <div class="preview-overlay"></div>
-
-                        <div class="preview-system">
-                            ● System · Ready
-                        </div>
-
-                        <div class="preview-ai">
-                            Good evening!
-                        </div>
-
-                        <div class="preview-user">
-                            Let's build something.
-                        </div>
-
-                        <div class="preview-ai preview-small">
-                            I'm ready when you are.
-                        </div>
-
-                    </div>
-
-
-                    <div class="theme-name">
-
-                        <span class="theme-dot"></span>
-
-                        Green
-
-                    </div>
-
-                </button>
-
-
-
-                <!-- ORANGE -->
-
-                <button
-                    class="theme-card"
-                    data-theme="orange"
-                    type="button"
-                >
-
-                    <div
-                        class="theme-preview"
-                        style="background-image:url('assets/themes/orange.jpeg')"
-                    >
-
-                        <div class="preview-overlay"></div>
-
-                        <div class="preview-system">
-                            ● System · Ready
-                        </div>
-
-                        <div class="preview-ai">
-                            Hey! What's up?
-                        </div>
-
-                        <div class="preview-user">
-                            Start a new chat.
-                        </div>
-
-                        <div class="preview-ai preview-small">
-                            Let's do it.
-                        </div>
-
-                    </div>
-
-
-                    <div class="theme-name">
-
-                        <span class="theme-dot"></span>
-
-                        Orange
-
-                    </div>
-
-                </button>
-
-
-
-                <!-- BLUE -->
-
-                <button
-                    class="theme-card"
-                    data-theme="blue"
-                    type="button"
-                >
-
-                    <div
-                        class="theme-preview"
-                        style="background-image:url('assets/themes/blue.jpeg')"
-                    >
-
-                        <div class="preview-overlay"></div>
-
-                        <div class="preview-system">
-                            ● System · Ready
-                        </div>
-
-                        <div class="preview-ai">
-                            What can I help with?
-                        </div>
-
-                        <div class="preview-user">
-                            Explain this to me.
-                        </div>
-
-                        <div class="preview-ai preview-small">
-                            Of course.
-                        </div>
-
-                    </div>
-
-
-                    <div class="theme-name">
-
-                        <span class="theme-dot"></span>
-
-                        Blue
-
-                    </div>
-
-                </button>
-
-            </div>
-
-        </div>
-
-
-
-        <!-- CUSTOM THEME -->
-
-        <div class="custom-theme-card">
-
-            <label
-    for="customThemeInput"
-    class="custom-theme-icon"
->
-    +
-</label>
-
-            <div class="custom-theme-content">
-
-                <h2>
-                    Custom Theme
-                </h2>
-
-                <p>
-                    Use your own wallpaper.
-                </p>
-
-            </div>
-
-
-            <!-- <label
-                for="customThemeInput"
-                class="custom-theme-button"
-            >
-                Choose Wallpaper
-            </label> -->
-
-
-            <input
-                id="customThemeInput"
-                type="file"
-                accept="image/*"
-                hidden
-            >
-
-        </div>
-
-    </section>
-
-
-
-    <!-- =====================================================
-         API PAGE
-    ====================================================== -->
-
-    <section
-        id="apiPage"
-        class="app-page"
-    >
-
-        <div class="page-header">
-
-            <button
-                class="back-button"
-                type="button"
-            >
-                ←
-            </button>
-
-            <h1>
-                API Management
-            </h1>
-
-        </div>
-
-
-        <p class="page-description">
-            Add and manage the providers used by your assistant.
-        </p>
-
-
-        <div
-            id="apiList"
-            class="api-list"
-        ></div>
-
-
-        <!-- CREATE API -->
-
-        <div
-            id="apiCreateCard"
-            class="api-card api-create-card"
-        >
-
-            <div class="api-create-title">
-                Create API
-            </div>
-
-
-            <label>
-                Name
-            </label>
-
-            <input
-                id="apiNameInput"
-                type="text"
-                placeholder="Enter API name"
-            >
-
-
-            <label>
-                API Key
-            </label>
-
-            <input
-                id="apiKeyInput"
-                type="password"
-                placeholder="Enter API key"
-                autocomplete="off"
-            >
-
-
-            <div class="create-api-row">
-
-                <button
-                    id="createApiButton"
-                    class="api-create-button"
-                    type="button"
-                >
-                    Create
-                </button>
-
-            </div>
-
-        </div>
-
-    </section>
-
-
-
-    <!-- =====================================================
-         DELETE MODAL
-    ====================================================== -->
-
-    <div
-        id="deleteModal"
-        class="delete-modal"
-        aria-hidden="true"
-    >
-
-        <div class="delete-modal-card">
-
-            <div class="delete-modal-icon">
-                !
-            </div>
-
-
-            <h2>
-                Delete API?
-            </h2>
-
-
-            <p id="deleteModalText">
-                Are you sure you want to delete this API?
+            <p class="signup-text">
+                Don't have an account? <a href="#">Sign up</a>
             </p>
 
-
-            <div class="delete-modal-actions">
-
-                <button
-                    id="cancelDeleteButton"
-                    class="delete-cancel-button"
-                    type="button"
-                >
-                    Cancel
-                </button>
-
-
-                <button
-                    id="confirmDeleteButton"
-                    class="delete-confirm-button"
-                    type="button"
-                >
-                    Delete
-                </button>
-
-            </div>
-
-        </div>
-
+            <p id="message"></p>
+        </form>
     </div>
 
-
-
     <script src="app.js"></script>
-
 </body>
-
 </html>
