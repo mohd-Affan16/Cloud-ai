@@ -8,6 +8,171 @@
 body {
     display: flex;
     justify-content: center;
+<<<<<<< HEAD
+=======
+
+    padding: 0;
+
+    border: none;
+    border-radius: 17px;
+
+    background: #000000;
+
+    color: #ffffff;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        transform 0.2s ease;
+}
+
+.menu-button svg {
+    width: 25px;
+    height: 25px;
+
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.menu-button:hover {
+    background: #000000;
+    transform: scale(1.03);
+}
+
+.menu-button:active {
+    transform: scale(0.96);
+}
+
+
+/* =========================================================
+   SIDE MENU
+========================================================= */
+
+.side-menu {
+
+    position: fixed;
+
+    top: 0;
+
+    left: 0;
+
+    width: 285px;
+
+    height: 100vh;
+
+    padding:
+        95px 18px 25px;
+
+    z-index: 750;
+
+    background:
+        rgba(255,255,255,0.075);
+
+    backdrop-filter:
+        blur(24px)
+        saturate(120%);
+
+    -webkit-backdrop-filter:
+        blur(24px)
+        saturate(120%);
+
+    border-right:
+        1px solid
+        rgba(255,255,255,0.16);
+
+    box-shadow:
+        8px 0 32px
+        rgba(0,0,0,0.10);
+
+    transform:
+        translateX(-285px);
+
+    transition:
+        transform 0.35s
+        cubic-bezier(.2,.8,.2,1);
+
+    overflow: hidden;
+
+}
+
+.side-menu.open {
+
+    transform:
+        translateX(0);
+
+}
+
+
+
+/* =========================================================
+   SIDE MENU TITLE
+========================================================= */
+
+/* =========================================================
+   SIDE MENU TITLE
+========================================================= */
+
+.menu-title {
+    width: 100%;
+
+    padding: 15px 17px;
+
+    margin-bottom: 28px;
+
+    border: 1px solid rgba(255,255,255,0.16);
+
+    border-radius: 15px;
+
+    background: rgba(255,255,255,0.07);
+
+    color: #ffffff;
+
+    font-family: inherit;
+
+    font-size: 21px;
+
+    font-weight: 700;
+
+    letter-spacing: -0.3px;
+
+    text-align: left;
+
+    cursor: pointer;
+
+    box-shadow:
+        inset 0 1px 0
+        rgba(255,255,255,0.05);
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.menu-title:hover {
+    background: rgba(255,255,255,0.13);
+
+    border-color: rgba(255,255,255,0.28);
+}
+
+.menu-title:active {
+    transform: scale(0.985);
+}
+
+
+
+/* =========================================================
+   SIDE MENU BUTTONS
+========================================================= */
+
+.menu-item {
+
+    display: flex;
+
+>>>>>>> d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
     align-items: center;
     min-height: 100vh;
     background-color: #f4f7fe;
@@ -28,6 +193,7 @@ body {
     text-align: center;
 }
 
+<<<<<<< HEAD
 h2 {
     color: #1b2559;
     font-size: 26px;
@@ -42,12 +208,867 @@ h2 {
 }
 
 .input-group {
+=======
+
+
+/* =========================================================
+   APP PAGES
+========================================================= */
+
+.app-page {
+
+    position: fixed;
+
+    top: 50%;
+    left: 50%;
+
+    width: min(900px, calc(100% - 50px));
+    height: min(780px, calc(100vh - 80px));
+
+    transform:
+        translate(-50%, -46%)
+        scale(0.96);
+
+    z-index: 600;
+
+    padding:
+        30px 30px 60px;
+
+    overflow-y: auto;
+
+    background:
+        rgba(255,255,255,0.075);
+
+    backdrop-filter:
+        blur(24px)
+        saturate(115%);
+
+    -webkit-backdrop-filter:
+        blur(24px)
+        saturate(115%);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.15);
+
+    border-radius:
+        28px;
+
+    box-shadow:
+        0 20px 70px
+        rgba(0,0,0,0.35);
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0.25s ease;
+}
+
+
+.app-page.open {
+
+    opacity: 1;
+
+    visibility: visible;
+
+    pointer-events: auto;
+
+    transform:
+        translate(-50%, -50%)
+        scale(1);
+
+}
+
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.page-header {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    width:
+        min(1000px,100%);
+
+    margin:
+        0 auto 30px;
+
+}
+
+.page-header h1 {
+
+    font-size: 27px;
+
+}
+
+.back-button {
+
+    width: 42px;
+
+    height: 42px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.14);
+
+    border-radius: 13px;
+
+    background:
+        rgba(255,255,255,0.065);
+
+    backdrop-filter:
+        blur(14px);
+
+    -webkit-backdrop-filter:
+        blur(14px);
+
+    color:
+        #ffffff;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease;
+
+}
+
+.back-button:hover {
+
+    background:
+        rgba(255,255,255,0.12);
+
+    border-color:
+        rgba(255,255,255,0.25);
+
+}
+
+.page-description {
+
+    width:
+        min(1000px,100%);
+
+    margin:
+        0 auto 25px;
+
+    color:
+        rgba(255,255,255,0.62);
+
+}
+
+
+
+/* =========================================================
+   GLASS CARD
+========================================================= */
+
+.glass-card {
+
+    width:
+        min(1000px,100%);
+
+    margin:
+        auto;
+
+    padding: 25px;
+
+    border-radius: 24px;
+
+    background:
+        rgba(255,255,255,0.075);
+
+    backdrop-filter:
+        blur(22px)
+        saturate(115%);
+
+    -webkit-backdrop-filter:
+        blur(22px)
+        saturate(115%);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.14);
+
+    box-shadow:
+        0 8px 32px
+        rgba(0,0,0,0.10);
+
+}
+
+
+
+/* =========================================================
+   SETTINGS
+========================================================= */
+
+.settings-card h2 {
+
+    margin-bottom: 18px;
+
+}
+
+.settings-card h2:not(:first-child) {
+
+    margin-top: 35px;
+
+}
+
+.setting-row {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content:
+        space-between;
+
+    gap: 20px;
+
+    padding:
+        17px 0;
+
+    border-bottom:
+        1px solid
+        rgba(255,255,255,0.08);
+
+}
+
+.setting-row p {
+
+    margin-top: 5px;
+
+    font-size: 13px;
+
+    color:
+        rgba(255,255,255,0.58);
+
+}
+
+
+
+/* =========================================================
+   THEMES
+========================================================= */
+
+.theme-scroll-wrapper {
+
+    width:
+        min(1000px,100%);
+
+    margin:
+        0 auto;
+
+}
+
+.theme-grid {
+
+    width: 100%;
+
+    display: flex;
+
+    flex-direction: row;
+
+    flex-wrap: nowrap;
+
+    gap: 22px;
+
+    overflow-x: auto;
+
+    overflow-y: hidden;
+
+    padding:
+        5px 5px 16px;
+
+    scroll-behavior:
+        smooth;
+
+    scroll-snap-type:
+        x proximity;
+
+    scrollbar-width:
+        thin;
+
+    scrollbar-color:
+        rgba(255,255,255,0.26)
+        transparent;
+
+}
+
+.theme-grid::-webkit-scrollbar {
+
+    height: 7px;
+
+}
+
+.theme-grid::-webkit-scrollbar-track {
+
+    background:
+        rgba(255,255,255,0.035);
+
+    border-radius: 999px;
+
+}
+
+.theme-grid::-webkit-scrollbar-thumb {
+
+    background:
+        rgba(255,255,255,0.25);
+
+    border-radius: 999px;
+
+}
+
+.theme-grid::-webkit-scrollbar-thumb:hover {
+
+    background:
+        rgba(255,255,255,0.38);
+
+}
+
+
+
+/* =========================================================
+   THEME CARDS
+========================================================= */
+
+.theme-card {
+
+    flex:
+        0 0 350px;
+
+    width: 350px;
+
+    min-width: 350px;
+
+    padding: 0;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.15);
+
+    border-radius: 22px;
+
+    overflow: hidden;
+
+    background:
+        rgba(25,25,27,0.72);
+
+    color:
+        #ffffff;
+
+    cursor: pointer;
+
+>>>>>>> d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
     text-align: left;
     margin-bottom: 16px;
 }
 
+<<<<<<< HEAD
 .input-group label {
     display: block;
+=======
+.theme-card:hover {
+
+    transform:
+        translateY(-4px);
+
+    border-color:
+        rgba(255,255,255,0.28);
+
+    box-shadow:
+        0 15px 35px
+        rgba(0,0,0,0.23);
+
+}
+
+
+
+/* =========================================================
+   THEME PREVIEW
+========================================================= */
+
+.theme-preview {
+
+    position: relative;
+
+    width: 100%;
+
+    height: 235px;
+
+    padding: 18px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: flex-end;
+
+    align-items: flex-start;
+
+    gap: 9px;
+
+    background-size:
+        cover;
+
+    background-position:
+        center;
+
+    overflow: hidden;
+
+}
+
+.preview-overlay {
+
+    position: absolute;
+
+    inset: 0;
+
+    background:
+        linear-gradient(
+            to bottom,
+            rgba(0,0,0,0.05),
+            rgba(0,0,0,0.42)
+        );
+
+    pointer-events: none;
+
+}
+
+.preview-system {
+
+    position: relative;
+
+    z-index: 5;
+
+    align-self:
+        center;
+
+    margin-bottom:
+        auto;
+
+    padding:
+        5px 11px;
+
+    border-radius:
+        999px;
+
+    background:
+        rgba(12,12,14,0.70);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.13);
+
+    color:
+        rgba(255,255,255,0.80);
+
+    font-size: 9px;
+
+}
+
+.preview-ai,
+.preview-user {
+
+    position: relative;
+
+    z-index: 5;
+
+    max-width: 78%;
+
+    width: fit-content;
+
+    padding:
+        9px 13px;
+
+    border-radius: 14px;
+
+    font-size: 11px;
+
+    line-height: 1.35;
+
+}
+
+.preview-ai {
+
+    align-self:
+        flex-start;
+
+    background:
+        rgba(16,16,19,0.94);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    border-bottom-left-radius:
+        5px;
+
+}
+
+.preview-user {
+
+    align-self:
+        flex-end;
+
+    color:
+        #ffffff;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.15);
+
+    border-bottom-right-radius:
+        5px;
+
+}
+
+.theme-card[data-theme="purple"] .preview-user {
+
+    background:
+        #8b5cf6;
+
+}
+
+.theme-card[data-theme="green"] .preview-user {
+
+    background:
+        #15803d;
+
+}
+
+.theme-card[data-theme="orange"] .preview-user {
+
+    background:
+        #ea580c;
+
+}
+
+.theme-card[data-theme="blue"] .preview-user {
+
+    background:
+        #1d4ed8;
+
+}
+
+.preview-small {
+
+    font-size: 10px;
+
+}
+
+
+
+/* =========================================================
+   THEME NAME
+========================================================= */
+
+.theme-name {
+
+    height: 58px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 9px;
+
+    background:
+        rgba(12,12,14,0.84);
+
+    border-top:
+        1px solid
+        rgba(255,255,255,0.10);
+
+    font-size: 17px;
+
+    font-weight: 600;
+
+}
+
+.theme-dot {
+
+    width: 8px;
+
+    height: 8px;
+
+    border-radius: 50%;
+
+}
+
+.theme-card[data-theme="purple"] .theme-dot {
+
+    background:
+        #8b5cf6;
+
+}
+
+.theme-card[data-theme="green"] .theme-dot {
+
+    background:
+        #22c55e;
+
+}
+
+.theme-card[data-theme="orange"] .theme-dot {
+
+    background:
+        #f97316;
+
+}
+
+.theme-card[data-theme="blue"] .theme-dot {
+
+    background:
+        #3b82f6;
+
+}
+
+
+
+/* =========================================================
+   CUSTOM THEME
+========================================================= */
+
+.custom-theme-card {
+
+    width:
+        min(1000px,100%);
+
+    min-height: 100px;
+
+    margin:
+        22px auto 0;
+
+    padding:
+        20px 22px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 15px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.13);
+
+    border-radius: 20px;
+
+    background:
+        rgba(255,255,255,0.07);
+
+    backdrop-filter:
+        blur(20px);
+
+    -webkit-backdrop-filter:
+        blur(20px);
+
+}
+
+.custom-theme-icon {
+
+    width: 44px;
+
+    height: 44px;
+
+    flex-shrink: 0;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 13px;
+
+    background:
+        rgba(255,255,255,0.07);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    font-size: 24px;
+
+}
+.custom-theme-icon:hover{
+     background:
+        rgba(255,255,255,0.13);
+
+    border-color:
+        rgba(255,255,255,0.28);
+
+    transform:
+        translateX(3px);
+
+    box-shadow:
+        0 7px 22px
+        rgba(0,0,0,0.10);
+    
+}
+.custom-theme-content {
+
+    flex: 1;
+
+}
+
+.custom-theme-content h2 {
+
+    font-size: 16px;
+
+    margin-bottom: 5px;
+
+}
+
+.custom-theme-content p {
+
+    font-size: 12px;
+
+    color:
+        rgba(255,255,255,0.48);
+
+}
+
+.custom-theme-button {
+
+    padding:
+        10px 15px;
+
+    border-radius: 10px;
+
+    background:
+        rgba(255,255,255,0.07);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.14);
+
+    color:
+        #ffffff;
+
+    font-size: 12px;
+
+    cursor: pointer;
+
+}
+
+.custom-theme-button:hover {
+
+    background:
+        rgba(255,255,255,0.13);
+
+}
+
+
+
+/* =========================================================
+   API LIST
+========================================================= */
+
+.api-list {
+
+    width:
+        min(1000px,100%);
+
+    margin:
+        0 auto 20px;
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 15px;
+
+    max-height:
+        calc(100vh - 330px);
+
+    overflow-y: auto;
+
+    padding-right: 5px;
+
+}
+
+
+
+/* =========================================================
+   API CARD
+========================================================= */
+
+.api-card {
+
+    width: 100%;
+
+    padding: 22px;
+
+    border-radius: 20px;
+
+    background:
+        rgba(255,255,255,0.075);
+
+    backdrop-filter:
+        blur(20px)
+        saturate(115%);
+
+    -webkit-backdrop-filter:
+        blur(20px)
+        saturate(115%);
+
+    border:
+        1px solid
+        rgba(255,255,255,0.13);
+
+    box-shadow:
+        0 8px 28px
+        rgba(0,0,0,0.12);
+
+}
+
+.saved-api-card {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 15px;
+
+}
+
+
+
+/* =========================================================
+   API FIELD
+========================================================= */
+
+.api-field {
+
+    display: flex;
+
+    flex-direction: column;
+
+    gap: 7px;
+
+}
+
+.api-field-label {
+
+    padding-left: 2px;
+
+>>>>>>> d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
     font-size: 13px;
     color: #2b3674;
     margin-bottom: 6px;
@@ -73,16 +1094,62 @@ h2 {
     margin-bottom: 20px;
 }
 
+<<<<<<< HEAD
 .forgot-password {
+=======
+
+
+/* =========================================================
+   CREATE BUTTON
+========================================================= */
+
+.create-api-row {
+
+    display: flex;
+
+    justify-content:
+        flex-end;
+
+    margin-top: 8px;
+
+}
+
+.api-create-button {
+
+    padding:
+        10px 22px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.16);
+
+    border-radius: 11px;
+
+    background:#000000;
+
+    color:
+        #ffffff;
+
+>>>>>>> d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
     font-size: 13px;
     color: #4318ff;
     text-decoration: none;
     font-weight: 500;
 }
+<<<<<<< HEAD
 
 .forgot-password:hover {
     text-decoration: underline;
 }
+=======
+/* 
+.api-create-button:hover {
+
+    background:
+        rgba(255,255,255,0.16);
+
+} */
+>>>>>>> d7c4d553fed1d8e643c0979cd1e2ae5d176d3b69
 
 .btn-primary {
     width: 100%;
