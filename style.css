@@ -164,37 +164,55 @@ body {
    SIDE MENU TITLE
 ========================================================= */
 
-.menu-title {
+/* =========================================================
+   SIDE MENU TITLE
+========================================================= */
 
+.menu-title {
     width: 100%;
 
-    padding:
-        15px 17px;
+    padding: 15px 17px;
 
     margin-bottom: 28px;
 
-    border:
-        1px solid
-        rgba(255,255,255,0.16);
+    border: 1px solid rgba(255,255,255,0.16);
 
     border-radius: 15px;
 
-    background:
-        rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.07);
 
     color: #ffffff;
+
+    font-family: inherit;
 
     font-size: 21px;
 
     font-weight: 700;
 
-    letter-spacing:
-        -0.3px;
+    letter-spacing: -0.3px;
+
+    text-align: left;
+
+    cursor: pointer;
 
     box-shadow:
         inset 0 1px 0
         rgba(255,255,255,0.05);
 
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.menu-title:hover {
+    background: rgba(255,255,255,0.13);
+
+    border-color: rgba(255,255,255,0.28);
+}
+
+.menu-title:active {
+    transform: scale(0.985);
 }
 
 
@@ -1006,26 +1024,32 @@ body {
 
 
 /* =========================================================
-   FULL SCREEN PAGES
+   APP PAGES
 ========================================================= */
 
 .app-page {
 
     position: fixed;
 
-    inset: 0;
+    top: 50%;
+    left: 50%;
+
+    width: min(900px, calc(100% - 50px));
+    height: min(780px, calc(100vh - 80px));
+
+    transform:
+        translate(-50%, -46%)
+        scale(0.96);
 
     z-index: 600;
-
-    display: none;
-
-    overflow-y: auto;
 
     padding:
         30px 30px 60px;
 
+    overflow-y: auto;
+
     background:
-        rgba(255,255,255,0.065);
+        rgba(255,255,255,0.075);
 
     backdrop-filter:
         blur(24px)
@@ -1039,19 +1063,39 @@ body {
         1px solid
         rgba(255,255,255,0.15);
 
-    box-shadow:
-        0 8px 32px
-        rgba(0,0,0,0.10);
+    border-radius:
+        28px;
 
+    box-shadow:
+        0 20px 70px
+        rgba(0,0,0,0.35);
+
+    opacity: 0;
+
+    visibility: hidden;
+
+    pointer-events: none;
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0.25s ease;
 }
+
 
 .app-page.open {
 
-    display:
-        block;
+    opacity: 1;
+
+    visibility: visible;
+
+    pointer-events: auto;
+
+    transform:
+        translate(-50%, -50%)
+        scale(1);
 
 }
-
 
 
 /* =========================================================
@@ -1685,7 +1729,21 @@ body {
     font-size: 24px;
 
 }
+.custom-theme-icon:hover{
+     background:
+        rgba(255,255,255,0.13);
 
+    border-color:
+        rgba(255,255,255,0.28);
+
+    transform:
+        translateX(3px);
+
+    box-shadow:
+        0 7px 22px
+        rgba(0,0,0,0.10);
+    
+}
 .custom-theme-content {
 
     flex: 1;
@@ -2220,8 +2278,7 @@ body {
 
     border-radius: 11px;
 
-    background:
-        rgba(255,255,255,0.09);
+    background:#000000;
 
     color:
         #ffffff;
@@ -2231,13 +2288,13 @@ body {
     cursor: pointer;
 
 }
-
+/* 
 .api-create-button:hover {
 
     background:
         rgba(255,255,255,0.16);
 
-}
+} */
 
 
 

@@ -10,6 +10,8 @@
 
 const menuButton =
     document.getElementById("menuButton");
+const newConversationButton =
+    document.getElementById("newConversationButton");
 
 const sideMenu =
     document.getElementById("sideMenu");
@@ -173,20 +175,16 @@ const themes = {
 /* =========================================================
    SIDE MENU
 ========================================================= */
-
 menuButton.addEventListener(
     "click",
     event => {
 
         event.stopPropagation();
 
-        dismissWelcome();
-
         sideMenu.classList.toggle("open");
 
     }
 );
-
 
 sideMenu.addEventListener(
     "click",
@@ -197,7 +195,88 @@ sideMenu.addEventListener(
     }
 );
 
+/* =========================================================
+   NEW CONVERSATION
+========================================================= */
 
+function startNewConversation() {
+
+    /*
+       Remove all existing chat messages.
+       The welcome section itself is kept.
+    */
+
+    const messages =
+        chat.querySelectorAll(".message");
+
+    messages.forEach(
+        message => {
+            message.remove();
+        }
+    );
+
+
+    /*
+       Show the welcome screen again.
+    */
+
+    welcome.classList.remove("hidden");
+
+
+    /*
+       Clear the message input.
+    */
+
+    messageInput.value = "";
+
+    autoResize();
+
+
+    /*
+       Close the menu.
+    */
+
+    sideMenu.classList.remove("open");
+
+
+    /*
+       Make sure the normal chat input
+       is visible.
+    */
+
+    inputContainer.classList.remove(
+        "page-hidden"
+    );
+
+
+    /*
+       Put the cursor back into the
+       message box.
+    */
+
+    messageInput.focus();
+
+
+    /*
+       Make sure the chat is at the top.
+    */
+
+    chat.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+newConversationButton.addEventListener(
+    "click",
+    event => {
+
+        event.stopPropagation();
+
+        startNewConversation();
+
+    }
+);
 chat.addEventListener(
     "click",
     () => {
@@ -329,7 +408,40 @@ function closePages() {
 
 }
 
+/* =========================================================
+   CLOSE PAGE WHEN CLICKING OUTSIDE
+========================================================= */
 
+document.addEventListener(
+    "click",
+    event => {
+
+        const openPage =
+            document.querySelector(".app-page.open");
+
+        if (!openPage) {
+            return;
+        }
+
+        /*
+           If the click happened inside
+           the currently open panel,
+           keep the panel open.
+        */
+
+        if (openPage.contains(event.target)) {
+            return;
+        }
+
+        /*
+           Click happened outside the panel.
+           Return to the existing conversation.
+        */
+
+        closePages();
+
+    }
+);
 
 /* =========================================================
    WELCOME
@@ -353,54 +465,191 @@ function dismissWelcome() {
    CHAT
 ========================================================= */
 
-function sendMessage() {
+async function sendMessage() {
 
     const text =
         messageInput.value.trim();
 
-
     if (!text) {
-
         return;
-
     }
 
+    /*
+       Get the currently selected API.
+    */
+
+    const activeApi =
+        getActiveApi();
+
+    if (!activeApi) {
+
+        alert(
+            "Please add and select an API first."
+        );
+
+        return;
+    }
+
+    /*
+       Get the raw API key from memory.
+    */
+
+    const apiKey =
+        apiSecrets.get(
+            activeApi.id
+        );
+
+    if (!apiKey) {
+
+        alert(
+            "The API key for the selected API is not available."
+        );
+
+        return;
+    }
+
+    /*
+       Show the user's message.
+    */
 
     dismissWelcome();
-
 
     addMessage(
         text,
         "user"
     );
 
-
-    messageInput.value =
-        "";
-
+    messageInput.value = "";
 
     autoResize();
 
-
     /*
-       Temporary response until
-       backend/API integration.
+       Show a temporary loading message.
     */
 
-    setTimeout(
-        () => {
+    const loadingMessage =
+        addMessage(
+            "Thinking...",
+            "ai"
+        );
+
+    try {
+
+        /*
+           Hugging Face OpenAI-compatible API.
+        */
+
+        const response =
+            await fetch(
+                "https://router.huggingface.co/v1/chat/completions",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json",
+
+                        "Authorization":
+                            `Bearer ${apiKey}`
+                    },
+
+                    body: JSON.stringify({
+
+                        model:
+                            "openai/gpt-oss-120b:fastest",
+
+                        messages: [
+                            {
+                                role: "user",
+                                content: text
+                            }
+                        ]
+
+                    })
+                }
+            );
+
+        /*
+           Convert the response to JSON.
+        */
+
+        const data =
+            await response.json();
+
+        /*
+           Remove the loading message.
+        */
+
+        loadingMessage.remove();
+
+        /*
+           Handle API errors.
+        */
+
+        if (!response.ok) {
+
+            console.error(
+                "Hugging Face API error:",
+                data
+            );
 
             addMessage(
-                "This is a temporary AI response. The real API will be connected in the next phase.",
+                data?.error ||
+                "The API request failed.",
                 "ai"
             );
 
-        },
-        700
-    );
+            return;
+        }
+
+        /*
+           Extract the AI response.
+        */
+
+        const aiResponse =
+            data?.choices?.[0]?.message?.content;
+
+        if (!aiResponse) {
+
+            addMessage(
+                "The API returned an empty response.",
+                "ai"
+            );
+
+            return;
+        }
+
+        /*
+           Display the AI response.
+        */
+
+        addMessage(
+            aiResponse,
+            "ai"
+        );
+
+    }
+    catch (error) {
+
+        /*
+           Handle network / connection errors.
+        */
+
+        console.error(
+            "API request failed:",
+            error
+        );
+
+        loadingMessage.remove();
+
+        addMessage(
+            "Could not connect to the AI service. Check your API key and internet connection.",
+            "ai"
+        );
+
+    }
 
 }
-
 
 function addMessage(
     text,
@@ -435,6 +684,7 @@ function addMessage(
             "smooth"
 
     });
+        return message;
 
 }
 
