@@ -407,6 +407,25 @@ function closePages() {
     );
 
 }
+/* =========================================================
+   KEEP API PAGE OPEN WHEN USING ITS CONTROLS
+========================================================= */
+
+const apiPage =
+    document.getElementById("apiPage");
+
+if (apiPage) {
+
+    apiPage.addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+        }
+    );
+
+}
 
 /* =========================================================
    CLOSE PAGE WHEN CLICKING OUTSIDE
@@ -474,9 +493,10 @@ async function sendMessage() {
         return;
     }
 
-    /*
-       Get the currently selected API.
-    */
+
+    /* =========================================
+       GET ACTIVE API
+    ========================================= */
 
     const activeApi =
         getActiveApi();
@@ -488,11 +508,13 @@ async function sendMessage() {
         );
 
         return;
+
     }
 
-    /*
-       Get the raw API key from memory.
-    */
+
+    /* =========================================
+       GET API KEY
+    ========================================= */
 
     const apiKey =
         apiSecrets.get(
@@ -506,11 +528,36 @@ async function sendMessage() {
         );
 
         return;
+
     }
 
-    /*
-       Show the user's message.
-    */
+
+    /* =========================================
+       CHOOSE PROVIDER ENDPOINT
+    ========================================= */
+
+    const endpoint =
+        activeApi.provider === "groq"
+
+            ? "https://api.groq.com/openai/v1/chat/completions"
+
+            : "https://router.huggingface.co/v1/chat/completions";
+
+
+    /* =========================================
+       CHOOSE MODEL
+    ========================================= */
+
+    const model =
+    activeApi.provider === "groq"
+
+        ? "openai/gpt-oss-20b"
+
+        : "openai/gpt-oss-120b:fastest";
+
+    /* =========================================
+       SHOW USER MESSAGE
+    ========================================= */
 
     dismissWelcome();
 
@@ -523,9 +570,10 @@ async function sendMessage() {
 
     autoResize();
 
-    /*
-       Show a temporary loading message.
-    */
+
+    /* =========================================
+       SHOW LOADING MESSAGE
+    ========================================= */
 
     const loadingMessage =
         addMessage(
@@ -533,81 +581,99 @@ async function sendMessage() {
             "ai"
         );
 
-    try {
 
-        /*
-           Hugging Face OpenAI-compatible API.
-        */
+    /* =========================================
+       SEND REQUEST
+    ========================================= */
+
+    try {
 
         const response =
             await fetch(
-                "https://router.huggingface.co/v1/chat/completions",
+                endpoint,
                 {
-                    method: "POST",
+
+                    method:
+                        "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json",
 
                         "Authorization":
                             `Bearer ${apiKey}`
+
                     },
 
-                    body: JSON.stringify({
+                    body:
+                        JSON.stringify({
 
-                        model:
-                            "openai/gpt-oss-120b:fastest",
+                            model:
+                                model,
 
-                        messages: [
-                            {
-                                role: "user",
-                                content: text
-                            }
-                        ]
+                            messages: [
 
-                    })
+                                {
+                                    role:
+                                        "user",
+
+                                    content:
+                                        text
+                                }
+
+                            ]
+
+                        })
+
                 }
             );
 
-        /*
-           Convert the response to JSON.
-        */
 
         const data =
             await response.json();
 
-        /*
-           Remove the loading message.
-        */
+
+        /* =====================================
+           REMOVE LOADING MESSAGE
+        ===================================== */
 
         loadingMessage.remove();
 
-        /*
-           Handle API errors.
-        */
+
+        /* =====================================
+           HANDLE API ERROR
+        ===================================== */
 
         if (!response.ok) {
 
             console.error(
-                "Hugging Face API error:",
+                "API error:",
                 data
             );
 
             addMessage(
+
+                data?.error?.message ||
                 data?.error ||
                 "The API request failed.",
+
                 "ai"
+
             );
 
             return;
+
         }
 
-        /*
-           Extract the AI response.
-        */
+
+        /* =====================================
+           GET AI RESPONSE
+        ===================================== */
 
         const aiResponse =
             data?.choices?.[0]?.message?.content;
+
 
         if (!aiResponse) {
 
@@ -617,11 +683,13 @@ async function sendMessage() {
             );
 
             return;
+
         }
 
-        /*
-           Display the AI response.
-        */
+
+        /* =====================================
+           DISPLAY AI RESPONSE
+        ===================================== */
 
         addMessage(
             aiResponse,
@@ -629,11 +697,8 @@ async function sendMessage() {
         );
 
     }
-    catch (error) {
 
-        /*
-           Handle network / connection errors.
-        */
+    catch (error) {
 
         console.error(
             "API request failed:",
@@ -643,8 +708,11 @@ async function sendMessage() {
         loadingMessage.remove();
 
         addMessage(
+
             "Could not connect to the AI service. Check your API key and internet connection.",
+
             "ai"
+
         );
 
     }
@@ -1013,6 +1081,13 @@ savedApiMetadata.forEach(
 
             name:
                 entry.name,
+
+            provider:
+                entry.name
+                    .toLowerCase()
+                    .includes("groq")
+                    ? "groq"
+                    : "huggingface",
 
             maskLength:
                 entry.maskLength || 16,
