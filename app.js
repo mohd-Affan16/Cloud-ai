@@ -67,8 +67,22 @@ const apiNameInput =
 const apiKeyInput =
     document.getElementById("apiKeyInput");
 
+const providerSelectButton =
+    document.getElementById("providerSelectButton");
+
+const providerSelectValue =
+    document.getElementById("providerSelectValue");
+
+const providerSelectMenu =
+    document.getElementById("providerSelectMenu");
+
+const providerOptions =
+    document.querySelectorAll(".provider-option");
+
 const createApiButton =
     document.getElementById("createApiButton");
+
+let selectedProvider = "groq";
 
 
 
@@ -169,6 +183,61 @@ const themes = {
     }
 
 };
+
+
+const PROVIDERS = {
+
+    groq: {
+
+        label:
+            "Groq",
+
+        endpoint:
+            "https://api.groq.com/openai/v1/chat/completions",
+
+        model:
+            "openai/gpt-oss-20b"
+
+    },
+
+    huggingface: {
+
+        label:
+            "Hugging Face",
+
+        endpoint:
+            "https://router.huggingface.co/v1/chat/completions",
+
+        model:
+            "openai/gpt-oss-120b:fastest"
+
+    },
+
+    openai: {
+
+        label:
+            "OpenAI",
+
+        endpoint:
+            "https://api.openai.com/v1/chat/completions",
+
+        model:
+            "gpt-4o-mini"
+
+    }
+
+};
+
+
+function getProviderConfig(providerKey) {
+
+    const provider =
+        PROVIDERS[providerKey] ||
+        PROVIDERS.huggingface;
+
+    return provider;
+
+}
 
 
 
@@ -408,61 +477,6 @@ function closePages() {
 
 }
 /* =========================================================
-   KEEP API PAGE OPEN WHEN USING ITS CONTROLS
-========================================================= */
-
-const apiPage =
-    document.getElementById("apiPage");
-
-if (apiPage) {
-
-    apiPage.addEventListener(
-        "click",
-        event => {
-
-            event.stopPropagation();
-
-        }
-    );
-
-}
-
-/* =========================================================
-   CLOSE PAGE WHEN CLICKING OUTSIDE
-========================================================= */
-
-document.addEventListener(
-    "click",
-    event => {
-
-        const openPage =
-            document.querySelector(".app-page.open");
-
-        if (!openPage) {
-            return;
-        }
-
-        /*
-           If the click happened inside
-           the currently open panel,
-           keep the panel open.
-        */
-
-        if (openPage.contains(event.target)) {
-            return;
-        }
-
-        /*
-           Click happened outside the panel.
-           Return to the existing conversation.
-        */
-
-        closePages();
-
-    }
-);
-
-/* =========================================================
    WELCOME
 ========================================================= */
 
@@ -533,27 +547,20 @@ async function sendMessage() {
 
 
     /* =========================================
-       CHOOSE PROVIDER ENDPOINT
+       CHOOSE PROVIDER SETTINGS
     ========================================= */
+
+    const providerConfig =
+        getProviderConfig(
+            activeApi.provider
+        );
 
     const endpoint =
-        activeApi.provider === "groq"
-
-            ? "https://api.groq.com/openai/v1/chat/completions"
-
-            : "https://router.huggingface.co/v1/chat/completions";
-
-
-    /* =========================================
-       CHOOSE MODEL
-    ========================================= */
+        providerConfig.endpoint;
 
     const model =
-    activeApi.provider === "groq"
-
-        ? "openai/gpt-oss-20b"
-
-        : "openai/gpt-oss-120b:fastest";
+        activeApi.model ||
+        providerConfig.model;
 
     /* =========================================
        SHOW USER MESSAGE
@@ -1074,6 +1081,17 @@ try {
 savedApiMetadata.forEach(
     entry => {
 
+        const provider =
+            PROVIDERS[entry.provider]
+                ? entry.provider
+                : (
+                    entry.name
+                        .toLowerCase()
+                        .includes("groq")
+                        ? "groq"
+                        : "huggingface"
+                );
+
         apiEntries.push({
 
             id:
@@ -1082,12 +1100,11 @@ savedApiMetadata.forEach(
             name:
                 entry.name,
 
-            provider:
-                entry.name
-                    .toLowerCase()
-                    .includes("groq")
-                    ? "groq"
-                    : "huggingface",
+            provider,
+
+            model:
+                entry.model ||
+                PROVIDERS[provider].model,
 
             maskLength:
                 entry.maskLength || 16,
@@ -1112,6 +1129,60 @@ renderApiSwitcher();
 /* =========================================================
    CREATE API
 ========================================================= */
+
+providerSelectButton?.addEventListener(
+    "click",
+    event => {
+
+        event.stopPropagation();
+
+        providerSelectMenu?.classList.toggle("open");
+
+    }
+);
+
+providerOptions.forEach(
+    option => {
+
+        option.addEventListener(
+            "click",
+            event => {
+
+                event.stopPropagation();
+
+                selectedProvider =
+                    option.dataset.value || "groq";
+
+                providerSelectValue.textContent =
+                    option.textContent.trim();
+
+                providerOptions.forEach(
+                    item => {
+
+                        item.classList.toggle(
+                            "selected",
+                            item === option
+                        );
+
+                    }
+                );
+
+                providerSelectMenu?.classList.remove("open");
+
+            }
+        );
+
+    }
+);
+
+document.addEventListener(
+    "click",
+    () => {
+
+        providerSelectMenu?.classList.remove("open");
+
+    }
+);
 
 createApiButton.addEventListener(
     "click",
@@ -1140,7 +1211,8 @@ createApiButton.addEventListener(
 
         saveApi(
             name,
-            key
+            key,
+            selectedProvider
         );
 
 
@@ -1149,6 +1221,28 @@ createApiButton.addEventListener(
 
         apiKeyInput.value =
             "";
+
+        selectedProvider = "groq";
+
+        if (providerSelectValue) {
+
+            providerSelectValue.textContent =
+                "Groq";
+
+        }
+
+        providerOptions.forEach(
+            option => {
+
+                option.classList.toggle(
+                    "selected",
+                    option.dataset.value === "groq"
+                );
+
+            }
+        );
+
+        providerSelectMenu?.classList.remove("open");
 
     }
 );
@@ -1161,7 +1255,8 @@ createApiButton.addEventListener(
 
 function saveApi(
     name,
-    key
+    key,
+    providerKey = "groq"
 ) {
 
     const id =
@@ -1180,6 +1275,11 @@ function saveApi(
     const active =
         apiEntries.length === 0;
 
+    const provider =
+        PROVIDERS[providerKey]
+            ? providerKey
+            : "groq";
+
 
     apiSecrets.set(
         id,
@@ -1192,6 +1292,11 @@ function saveApi(
         id,
 
         name,
+
+        provider,
+
+        model:
+            PROVIDERS[provider].model,
 
         maskLength,
 
@@ -1225,6 +1330,12 @@ function saveApiMetadata() {
 
                 name:
                     entry.name,
+
+                provider:
+                    entry.provider,
+
+                model:
+                    entry.model,
 
                 maskLength:
                     entry.maskLength,
@@ -1404,6 +1515,22 @@ function renderApiEntry(
 
             <div class="api-value-box">
                 ${escapeHtml(entry.name)}
+            </div>
+
+        </div>
+
+
+        <div class="api-field">
+
+            <div class="api-field-label">
+                Provider
+            </div>
+
+            <div class="api-value-box">
+                ${escapeHtml(
+                    PROVIDERS[entry.provider]?.label ||
+                    "Unknown"
+                )}
             </div>
 
         </div>
@@ -1776,6 +1903,25 @@ function editApi(
         <div class="api-field">
 
             <div class="api-field-label">
+                Provider
+            </div>
+
+            <select class="edit-provider-input">
+                ${Object.entries(PROVIDERS).map(
+                    ([key, value]) => `
+                        <option value="${key}" ${entry.provider === key ? "selected" : ""}>
+                            ${escapeHtml(value.label)}
+                        </option>
+                    `
+                ).join("")}
+            </select>
+
+        </div>
+
+
+        <div class="api-field">
+
+            <div class="api-field-label">
                 API Key
             </div>
 
@@ -1826,6 +1972,11 @@ function editApi(
                     ".edit-name-input"
                 ).value.trim();
 
+            const newProvider =
+                card.querySelector(
+                    ".edit-provider-input"
+                ).value;
+
 
             const newKey =
                 card.querySelector(
@@ -1846,6 +1997,14 @@ function editApi(
 
             entry.name =
                 newName;
+
+            entry.provider =
+                PROVIDERS[newProvider]
+                    ? newProvider
+                    : "groq";
+
+            entry.model =
+                PROVIDERS[entry.provider].model;
 
 
             if (newKey) {
