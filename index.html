@@ -748,6 +748,57 @@
 
 
             <label>
+                Provider
+            </label>
+
+            <div
+                id="providerSelectWrapper"
+                class="api-provider-select-wrapper"
+            >
+
+                <button
+                    id="providerSelectButton"
+                    class="api-provider-select-button"
+                    type="button"
+                >
+                    <span id="providerSelectValue">Groq</span>
+                    <span class="api-provider-arrow">▼</span>
+                </button>
+
+                <div
+                    id="providerSelectMenu"
+                    class="api-provider-select-menu"
+                    role="listbox"
+                >
+                    <button
+                        class="provider-option selected"
+                        data-value="groq"
+                        type="button"
+                    >
+                        Groq
+                    </button>
+
+                    <button
+                        class="provider-option"
+                        data-value="huggingface"
+                        type="button"
+                    >
+                        Hugging Face
+                    </button>
+
+                    <button
+                        class="provider-option"
+                        data-value="openai"
+                        type="button"
+                    >
+                        OpenAI
+                    </button>
+                </div>
+
+            </div>
+
+
+            <label>
                 API Key
             </label>
 
