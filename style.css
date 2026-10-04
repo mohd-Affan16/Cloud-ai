@@ -1031,15 +1031,14 @@ body {
 
     position: fixed;
 
-    top: 50%;
-    left: 50%;
+    inset: 0;
 
-    width: min(900px, calc(100% - 50px));
-    height: min(780px, calc(100vh - 80px));
+    width: 100vw;
+    height: 100vh;
 
     transform:
-        translate(-50%, -46%)
-        scale(0.96);
+        translateY(10px)
+        scale(0.99);
 
     z-index: 600;
 
@@ -1064,7 +1063,7 @@ body {
         rgba(255,255,255,0.15);
 
     border-radius:
-        28px;
+        0;
 
     box-shadow:
         0 20px 70px
@@ -1092,7 +1091,7 @@ body {
     pointer-events: auto;
 
     transform:
-        translate(-50%, -50%)
+        translateY(0)
         scale(1);
 
 }
@@ -2206,7 +2205,9 @@ body {
 
 }
 
-.api-card input {
+.api-card input,
+.api-card select,
+.edit-provider-input {
 
     width: 100%;
 
@@ -2240,13 +2241,159 @@ body {
 
 }
 
-.api-card input:focus {
+.api-card input:focus,
+.api-card select:focus,
+.edit-provider-input:focus {
 
     border-color:
         rgba(255,255,255,0.30);
 
     background:
         rgba(255,255,255,0.08);
+
+}
+
+.api-provider-select-wrapper {
+
+    position: relative;
+
+    width: 100%;
+
+}
+
+.api-provider-select-button {
+
+    width: 100%;
+
+    min-height: 48px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding:
+        12px 14px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.12);
+
+    border-radius: 11px;
+
+    background:
+        rgba(255,255,255,0.055);
+
+    color:
+        #ffffff;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    text-align: left;
+
+    cursor: pointer;
+
+}
+
+.api-provider-select-button:hover,
+.api-provider-select-button:focus {
+
+    background:
+        rgba(255,255,255,0.08);
+
+    border-color:
+        rgba(255,255,255,0.30);
+
+    outline: none;
+
+}
+
+.api-provider-arrow {
+
+    color:
+        rgba(255,255,255,0.8);
+
+    font-size: 12px;
+
+}
+
+.api-provider-select-menu {
+
+    position: absolute;
+
+    left: 0;
+
+    right: 0;
+
+    top: calc(100% + 6px);
+
+    display: none;
+
+    flex-direction: column;
+
+    gap: 6px;
+
+    padding: 8px;
+
+    border:
+        1px solid
+        rgba(255,255,255,0.14);
+
+    border-radius: 12px;
+
+    background:
+        rgba(15,15,20,0.96);
+
+    box-shadow:
+        0 14px 30px rgba(0,0,0,0.25);
+
+    z-index: 10;
+
+}
+
+.api-provider-select-menu.open {
+
+    display: flex;
+
+}
+
+.provider-option {
+
+    width: 100%;
+
+    padding:
+        12px 14px;
+
+    border: none;
+
+    border-radius: 9px;
+
+    background:
+        transparent;
+
+    color:
+        #ffffff;
+
+    text-align: left;
+
+    font-family: inherit;
+
+    font-size: 14px;
+
+    cursor: pointer;
+
+}
+
+.provider-option:hover,
+.provider-option.selected {
+
+    background:
+        rgba(255,255,255,0.09);
 
 }
 
