@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Cloud AI - Login</title>
+
+    <style>
+
+        /* ============================================
+           RESET
+        ============================================ */
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        hr {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+        /* ============================================
+           PAGE
+        ============================================ */
+
+        body {
+            min-height: 100vh;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+
+            transition: background-image 0.5s ease;
+
+            overflow: hidden;
+        }
+
+
+        /* ============================================
+           BACKGROUND OVERLAY
+        ============================================ */
+
+        body::before {
+            content: "";
+
+            position: fixed;
+
+            inset: 0;
+
+            background:
+                rgba(0, 0, 0, 0.35);
+
+            backdrop-filter: blur(4px);
+
+            z-index: -1;
+        }
+
+
+        /* ============================================
+           LOGIN CARD
+        ============================================ */
+
+    
+
+           .login-card {
+    width: min(420px, 90%);
+    padding: 45px 35px;
+    text-align: center;
+    border-radius: 24px;
+    border-bottom: none !important;
+    background: rgba(255, 255, 255, 0.10);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.18);
+
+    color: white;
+}
+        
+
+
+        /* ============================================
+           TITLE
+        ============================================ */
+
+        .login-card h1 {
+
+            font-size: 32px;
+
+            margin-bottom: 12px;
+
+            font-weight: 700;
+
+            letter-spacing: -0.5px;
+        }
+
+
+        /* ============================================
+           DESCRIPTION
+        ============================================ */
+
+        .login-card p {
+
+            font-size: 15px;
+
+            color:
+                rgba(255, 255, 255, 0.75);
+
+            margin-bottom: 30px;
+        }
+
+
+        /* ============================================
+           GOOGLE BUTTON
+        ============================================ */
+
+        #googleLoginButton {
+
+            width: 100%;
+
+            padding: 14px 20px;
+
+            border: none;
+
+            border-radius: 12px;
+
+            background: white;
+
+            color: #222;
+
+            font-size: 15px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition:
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+
+        #googleLoginButton:hover {
+
+            transform: translateY(-2px);
+
+            box-shadow:
+                0 8px 25px rgba(0, 0, 0, 0.25);
+        }
+
+
+        #googleLoginButton:active {
+
+            transform: translateY(0);
+        }
+
+
+        /* ============================================
+           GOOGLE ICON
+        ============================================ */
+
+        .google-icon {
+
+            width: 18px;
+
+            height: 18px;
+
+            margin-right: 10px;
+
+            vertical-align: middle;
+        }
+
+
+        /* ============================================
+           LOADING TEXT
+        ============================================ */
+
+        #loading {
+
+            position: fixed;
+
+            inset: 0;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background: rgba(0, 0, 0, 0.5);
+
+            color: white;
+
+            font-size: 16px;
+        }
+
+
+        /* ============================================
+           MOBILE
+        ============================================ */
+
+        @media (max-width: 500px) {
+
+            .login-card {
+
+                padding: 35px 25px;
+            }
+
+            .login-card h1 {
+
+                font-size: 26px;
+            }
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+    <!-- ============================================
+         LOGIN CARD
+    ============================================= -->
+
+    <main class="login-card">
+
+        <h1>
+            Welcome to Cloud AI
+        </h1>
+
+        <p>
+            Sign in with Google to continue
+        </p>
+
+
+        <button id="googleLoginButton">
+
+            <img
+                class="google-icon"
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+            >
+
+            Continue with Google
+
+        </button>
+
+    </main>
+
+
+    <!-- ============================================
+         LOGIN JAVASCRIPT
+    ============================================= -->
+
+    <script>
+
+        // ============================================
+        // LOAD RANDOM THEME
+        // ============================================
+
+        async function loadRandomTheme() {
+
+            try {
+
+                const response =
+                    await fetch("/assets/themes/themes.json");
+
+                if (!response.ok) {
+
+                    throw new Error(
+                        "Could not load themes.json"
+                    );
+                }
+
+
+                const themes =
+                    await response.json();
+
+
+                if (!Array.isArray(themes) ||
+                    themes.length === 0) {
+
+                    throw new Error(
+                        "No themes available"
+                    );
+                }
+
+
+                // Pick a random theme
+
+                const randomIndex =
+                    Math.floor(
+                        Math.random() * themes.length
+                    );
+
+
+                const selectedTheme =
+                    themes[randomIndex];
+
+
+                // Apply background
+
+                document.body.style.backgroundImage =
+                    `url("${selectedTheme.image}")`;
+
+
+                console.log(
+                    "Login theme:",
+                    selectedTheme.name
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Theme loading failed:",
+                    error
+                );
+
+
+                // Fallback theme
+
+                document.body.style.backgroundImage =
+                    'url("/assets/themes/purple.jpeg")';
+            }
+        }
+
+
+        // ============================================
+        // GOOGLE LOGIN
+        // ============================================
+
+        function setupGoogleLogin() {
+
+            const button =
+                document.getElementById(
+                    "googleLoginButton"
+                );
+
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    // Send user to Express
+                    // Google OAuth route
+
+                    window.location.href =
+                        "/auth/google";
+
+                }
+            );
+        }
+
+
+        // ============================================
+        // START LOGIN PAGE
+        // ============================================
+
+        async function initializeLogin() {
+
+            await loadRandomTheme();
+
+            setupGoogleLogin();
+
+        }
+
+
+        // Start
+
+        initializeLogin();
+
+    </script>
+
+</body>
+
+</html>

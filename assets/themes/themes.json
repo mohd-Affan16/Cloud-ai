@@ -1,0 +1,18 @@
+[
+  {
+    "name": "Purple",
+    "image": "/assets/themes/purple.jpeg"
+  },
+  {
+    "name": "Green",
+    "image": "/assets/themes/green.jpeg"
+  },
+  {
+    "name": "Orange",
+    "image": "/assets/themes/orange.jpeg"
+  },
+  {
+    "name": "Blue",
+    "image": "/assets/themes/blue.jpeg"
+  }
+]
