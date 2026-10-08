@@ -112,13 +112,11 @@ passport.deserializeUser((user, done) => {
 // ============================================
 // STATIC FILES
 // ============================================
-
 app.use(
-    express.static(__dirname, {
+    express.static(path.join(__dirname, "public"), {
         index: false
     })
 );
-
 
 // ============================================
 // LOGIN PAGE
