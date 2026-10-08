@@ -119,8 +119,358 @@ sideMenu.addEventListener(
 
 /* =========================================================
    THREAD / CHAT HISTORY ENGINE
+========================================================= */
+
+const threadsList =
+    document.getElementById("threadsList");
+
+let threads =
+    JSON.parse(
+        localStorage.getItem(
+            "cloud_ai_threads"
+        ) || "[]"
+    );
+
+let activeThreadId =
+    localStorage.getItem(
+        "cloud_ai_active_thread"
+    ) || null;
+
+
+/* =========================================================
+   SAVE THREADS
+========================================================= */
+
+function saveThreadsToStorage() {
+
+    localStorage.setItem(
+        "cloud_ai_threads",
+        JSON.stringify(threads)
+    );
+
+    localStorage.setItem(
+        "cloud_ai_active_thread",
+        activeThreadId
+    );
+}
+
+
+/* =========================================================
+   GET ACTIVE THREAD
+========================================================= */
+
+function getActiveThread() {
+
+    return threads.find(
+        thread =>
+            thread.id === activeThreadId
+    );
+}
+
+
+/* =========================================================
+   CLEAR CHAT
+========================================================= */
+
+function clearChatMessages() {
+
+    const messages =
+        chat.querySelectorAll(
+            ".message"
+        );
+
+    messages.forEach(
+        message => {
+            message.remove();
+        }
+    );
+}
+
+
+/* =========================================================
+   CREATE NEW THREAD
+========================================================= */
+
+function createNewThread() {
+
+    const newThread = {
+
+        id:
+            "thread_" +
+            Date.now(),
+
+        title:
+            "New Conversation",
+
+        messages:
+            []
+    };
+
+    threads.unshift(
+        newThread
+    );
+
+    activeThreadId =
+        newThread.id;
+
+    saveThreadsToStorage();
+
+    clearChatMessages();
+
+    welcome.classList.remove(
+        "hidden"
+    );
+
+    messageInput.value =
+        "";
+
+    autoResize();
+
+    renderThreads();
+
+    sideMenu.classList.remove(
+        "open"
+    );
+
+    messageInput.focus();
+}
+
+
+/* =========================================================
+   LOAD THREAD
+========================================================= */
+
+function loadThread(id) {
+
+    const thread =
+        threads.find(
+            item =>
+                item.id === id
+        );
+
+    if (!thread) {
+        return;
     }
-    loadThread(activeThreadId);
+
+    activeThreadId =
+        id;
+
+    saveThreadsToStorage();
+
+    clearChatMessages();
+
+    if (
+        thread.messages.length === 0
+    ) {
+
+        welcome.classList.remove(
+            "hidden"
+        );
+
+    } else {
+
+        welcome.classList.add(
+            "hidden"
+        );
+
+        thread.messages.forEach(
+            message => {
+
+                addMessage(
+                    message.content,
+                    message.role
+                );
+
+            }
+        );
+    }
+
+    renderThreads();
+
+    sideMenu.classList.remove(
+        "open"
+    );
+}
+
+
+/* =========================================================
+   DELETE THREAD
+========================================================= */
+
+function deleteThread(
+    id,
+    event
+) {
+
+    event.stopPropagation();
+
+    threads =
+        threads.filter(
+            thread =>
+                thread.id !== id
+        );
+
+    if (
+        activeThreadId === id
+    ) {
+
+        if (
+            threads.length > 0
+        ) {
+
+            activeThreadId =
+                threads[0].id;
+
+            loadThread(
+                activeThreadId
+            );
+
+        } else {
+
+            createNewThread();
+
+            return;
+        }
+    }
+
+    saveThreadsToStorage();
+
+    renderThreads();
+}
+
+
+/* =========================================================
+   ESCAPE HTML
+========================================================= */
+
+function escapeHtml(
+    text
+) {
+
+    const div =
+        document.createElement(
+            "div"
+        );
+
+    div.textContent =
+        text;
+
+    return div.innerHTML;
+}
+
+
+/* =========================================================
+   RENDER THREADS
+========================================================= */
+
+function renderThreads() {
+
+    if (!threadsList) {
+        return;
+    }
+
+    threadsList.innerHTML =
+        "";
+
+    threads.forEach(
+        thread => {
+
+            const item =
+                document.createElement(
+                    "div"
+                );
+
+            item.className =
+                `thread-item ${
+                    thread.id === activeThreadId
+                        ? "active"
+                        : ""
+                }`;
+
+            item.onclick =
+                () =>
+                    loadThread(
+                        thread.id
+                    );
+
+            item.innerHTML = `
+                <span class="thread-title">
+                    ${escapeHtml(
+                        thread.title
+                    )}
+                </span>
+
+                <button
+                    class="thread-delete-btn"
+                    title="Delete conversation"
+                >
+                    &times;
+                </button>
+            `;
+
+            const deleteButton =
+                item.querySelector(
+                    ".thread-delete-btn"
+                );
+
+            deleteButton.onclick =
+                event =>
+                    deleteThread(
+                        thread.id,
+                        event
+                    );
+
+            threadsList.appendChild(
+                item
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   NEW CHAT BUTTON
+========================================================= */
+
+newConversationButton.addEventListener(
+    "click",
+    event => {
+
+        event.stopPropagation();
+
+        createNewThread();
+    }
+);
+
+
+/* =========================================================
+   INITIALIZE CHAT HISTORY
+========================================================= */
+
+if (
+    threads.length === 0
+) {
+
+    createNewThread();
+
+} else {
+
+    if (
+        !activeThreadId ||
+        !threads.some(
+            thread =>
+                thread.id ===
+                activeThreadId
+        )
+    ) {
+
+        activeThreadId =
+            threads[0].id;
+    }
+
+    loadThread(
+        activeThreadId
+    );
 }
 chat.addEventListener(
     "click",
