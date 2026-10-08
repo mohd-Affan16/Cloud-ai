@@ -116,42 +116,12 @@ sideMenu.addEventListener(
         event.stopPropagation();
     }
 );
-/* ========================================================= NEW CONVERSATION ========================================================= */
-function startNewConversation() {
-    /* Remove all existing chat messages. The welcome section itself is kept. */
-    const messages =
-        chat.querySelectorAll(".message");
-    messages.forEach(
-        message => {
-            message.remove();
-        }
-    );
-    /* Show the welcome screen again. */
-    welcome.classList.remove("hidden");
-    /* Clear the message input. */
-    messageInput.value = "";
-    autoResize();
-    /* Close the menu. */
-    sideMenu.classList.remove("open");
-    /* Make sure the normal chat input is visible. */
-    inputContainer.classList.remove(
-        "page-hidden"
-    );
-    /* Put the cursor back into the message box. */
-    messageInput.focus();
-    /* Make sure the chat is at the top. */
-    chat.scrollTo({
-        top: 0,
-        behavior: "smooth"
-    });
-}
-newConversationButton.addEventListener(
-    "click",
-    event => {
-        event.stopPropagation();
-        startNewConversation();
+
+/* =========================================================
+   THREAD / CHAT HISTORY ENGINE
     }
-);
+    loadThread(activeThreadId);
+}
 chat.addEventListener(
     "click",
     () => {
@@ -274,6 +244,21 @@ async function sendMessage() {
     );
     messageInput.value = "";
     autoResize();
+
+// Save user message to active thread
+    const currentThread = getActiveThread();
+    if (currentThread) {
+        if (currentThread.messages.length === 0) {
+            currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
+        }
+        currentThread.messages.push({ role: "user", content: text });
+        saveThreadsToStorage();
+        renderThreads();
+    }   
+    /*
+       Show a temporary loading message.
+    */
+
     /* ========================================= SHOW LOADING MESSAGE ========================================= */
     const loadingMessage =
         addMessage(
@@ -342,6 +327,11 @@ async function sendMessage() {
             aiResponse,
             "ai"
         );
+// Save AI response to active thread
+        if (currentThread) {
+            currentThread.messages.push({ role: "ai", content: aiResponse });
+            saveThreadsToStorage();
+        }
     }
     catch (error) {
         console.error(

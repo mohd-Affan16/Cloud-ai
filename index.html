@@ -14,9 +14,42 @@
             <path d="M4 18H20"></path>
         </svg>
     </button>
-    <aside id="sideMenu" class="side-menu">
-        <button id="newConversationButton" class="menu-title" type="button">Cloud Hybrid AI</button>
-        <button class="menu-item" data-page="settingsPage" type="button">
+
+
+
+    <!-- =====================================================
+         SIDE MENU
+    ====================================================== -->
+
+    <aside
+        id="sideMenu"
+        class="side-menu"
+    >
+
+       <!-- NEW CHAT BUTTON -->
+        <button
+            id="newConversationButton"
+            class="menu-title"
+            type="button"
+        >
+            + New Chat
+        </button>
+
+        <!-- CHAT HISTORY LIST -->
+        <div class="threads-section">
+            <div class="threads-header">Recent Chats</div>
+            <div id="threadsList" class="threads-list"></div>
+        </div>
+
+
+        <!-- SETTINGS -->
+
+        <button
+            class="menu-item"
+            data-page="settingsPage"
+            type="button"
+        >
+
             <span class="menu-item-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5A3.5 3.5 0 0 0 12 15.5Z"></path>
