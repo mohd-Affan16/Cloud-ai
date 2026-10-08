@@ -35,6 +35,237 @@ const apiSwitcherButton = document.getElementById("apiSwitcherButton");
 const apiSwitcherMenu = document.getElementById("apiSwitcherMenu");
 const apiSwitcherCurrent = document.getElementById("apiSwitcherCurrent");
 const apiSwitcherList = document.getElementById("apiSwitcherList");
+
+
+/* =========================================================
+   CUSTOM NOTIFICATION POPUP
+========================================================= */
+
+let notificationTimer = null;
+
+
+/* =========================================================
+   SHOW POPUP
+========================================================= */
+
+function showPopup(
+    title,
+    message,
+    type = "error",
+    duration = 5000
+) {
+
+    /* Find elements when the popup is actually needed.
+       This is important because the popup HTML is loaded
+       after app.js in index.html. */
+
+    const popup =
+        document.getElementById(
+            "notificationPopup"
+        );
+
+    const icon =
+        document.getElementById(
+            "notificationIcon"
+        );
+
+    const titleElement =
+        document.getElementById(
+            "notificationTitle"
+        );
+
+    const messageElement =
+        document.getElementById(
+            "notificationMessage"
+        );
+
+
+    /* Safety check */
+
+    if (
+        !popup ||
+        !icon ||
+        !titleElement ||
+        !messageElement
+    ) {
+
+        console.error(
+            "Notification popup elements were not found."
+        );
+
+        return;
+    }
+
+
+    /* Clear previous timer */
+
+    clearTimeout(
+        notificationTimer
+    );
+
+
+    /* Set popup text */
+
+    titleElement.textContent =
+        title;
+
+    messageElement.textContent =
+        message;
+
+
+    /* Set popup type */
+
+    popup.classList.remove(
+        "error",
+        "warning",
+        "success"
+    );
+
+    popup.classList.add(
+        type
+    );
+
+
+    /* Set icon */
+
+    const icons = {
+        error: "×",
+        warning: "!",
+        success: "✓"
+    };
+
+    icon.textContent =
+        icons[type] || "!";
+
+
+    /* Show popup */
+
+    popup.classList.add(
+        "show"
+    );
+
+    popup.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
+    /* Automatically hide */
+
+    notificationTimer =
+        setTimeout(
+            hidePopup,
+            duration
+        );
+}
+
+
+/* =========================================================
+   HIDE POPUP
+========================================================= */
+
+function hidePopup() {
+
+    const popup =
+        document.getElementById(
+            "notificationPopup"
+        );
+
+    if (!popup) {
+        return;
+    }
+
+
+    popup.classList.remove(
+        "show"
+    );
+
+    popup.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    clearTimeout(
+        notificationTimer
+    );
+}
+
+
+/* =========================================================
+   CLOSE POPUP
+========================================================= */
+
+document.addEventListener(
+    "click",
+    event => {
+
+        if (
+            event.target.closest(
+                "#notificationClose"
+            )
+        ) {
+
+            hidePopup();
+        }
+    }
+);
+
+/* ========================================================= CHAT
+========================================================= */
+async function sendMessage() {
+}
+
+
+
+/* =========================================================
+   HIDE NOTIFICATION
+========================================================= */
+
+function hidePopup() {
+
+    const popup =
+        document.getElementById(
+            "notificationPopup"
+        );
+
+    if (!popup) {
+        return;
+    }
+
+
+    popup.classList.remove(
+        "show"
+    );
+
+    popup.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+    clearTimeout(
+        notificationTimer
+    );
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+========================================================= */
+
+document.addEventListener(
+    "click",
+    event => {
+
+        if (
+            event.target.closest(
+                "#notificationClose"
+            )
+        ) {
+
+            hidePopup();
+        }
+    }
+);
 /* ========================================================= THEME DATA ========================================================= */
 const themes = {
     purple: {
@@ -551,147 +782,319 @@ function dismissWelcome() {
 }
 /* ========================================================= CHAT ========================================================= */
 async function sendMessage() {
-    const text =
-        messageInput.value.trim();
-    if (!text) {
-        return;
-    }
-    /* ========================================= GET ACTIVE API ========================================= */
-    const activeApi =
-        getActiveApi();
-    if (!activeApi) {
-        alert(
-            "Please add and select an API first."
-        );
-        return;
-    }
-    /* ========================================= GET API KEY ========================================= */
-    const apiKey =
-        apiSecrets.get(
-            activeApi.id
-        );
-    if (!apiKey) {
-        alert(
-            "The API key for the selected API is not available."
-        );
-        return;
-    }
-    /* ========================================= CHOOSE PROVIDER SETTINGS ========================================= */
-    const providerConfig =
-        getProviderConfig(
-            activeApi.provider
-        );
-    const endpoint =
-        providerConfig.endpoint;
-    const model =
-        activeApi.model ||
-        providerConfig.model;
-    /* ========================================= SHOW USER MESSAGE ========================================= */
-    dismissWelcome();
-    addMessage(
-        text,
-        "user"
-    );
-    messageInput.value = "";
-    autoResize();
 
-// Save user message to active thread
-    const currentThread = getActiveThread();
-    if (currentThread) {
-        if (currentThread.messages.length === 0) {
-            currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
-        }
-        currentThread.messages.push({ role: "user", content: text });
-        saveThreadsToStorage();
-        renderThreads();
-    }   
-    /*
-       Show a temporary loading message.
-    */
-
-    /* ========================================= SHOW LOADING MESSAGE ========================================= */
-    const loadingMessage =
-        addMessage(
-            "Thinking...",
-            "ai"
-        );
-    /* ========================================= SEND REQUEST ========================================= */
     try {
+
+        /* =========================================
+           GET MESSAGE
+        ========================================= */
+
+        const text =
+            messageInput.value.trim();
+
+        if (!text) {
+
+            showPopup(
+                "Empty Message",
+                "Please enter a message before sending.",
+                "warning"
+            );
+
+            return;
+        }
+
+
+        /* =========================================
+           GET ACTIVE API
+        ========================================= */
+
+        const activeApi =
+            getActiveApi();
+
+        if (!activeApi) {
+
+            showPopup(
+                "No API Selected",
+                "Please add an API and select it before sending a message.",
+                "warning"
+            );
+
+            return;
+        }
+
+
+        /* =========================================
+           GET API KEY
+        ========================================= */
+
+        const apiKey =
+            apiSecrets.get(
+                activeApi.id
+            );
+
+        if (!apiKey) {
+
+            showPopup(
+                "API Key Missing",
+                `The API key for "${activeApi.name}" is not available. Please edit this API and enter the key again.`,
+                "warning"
+            );
+
+            return;
+        }
+
+
+        /* =========================================
+           GET PROVIDER CONFIG
+        ========================================= */
+
+        const providerConfig =
+            getProviderConfig(
+                activeApi.provider
+            );
+
+        if (!providerConfig) {
+
+            showPopup(
+                "Provider Error",
+                `The configuration for "${activeApi.provider}" could not be found.`,
+                "error"
+            );
+
+            return;
+        }
+
+
+        const endpoint =
+            providerConfig.endpoint;
+
+        const model =
+            activeApi.model ||
+            providerConfig.model;
+
+
+        if (!endpoint || !model) {
+
+            showPopup(
+                "Configuration Error",
+                "The selected API is missing its endpoint or model configuration.",
+                "error"
+            );
+
+            return;
+        }
+
+
+        /* =========================================
+           SHOW USER MESSAGE
+        ========================================= */
+
+        dismissWelcome();
+
+        addMessage(
+            text,
+            "user"
+        );
+
+        messageInput.value = "";
+
+        autoResize();
+
+
+        /* =========================================
+           SAVE USER MESSAGE
+        ========================================= */
+
+        const currentThread =
+            getActiveThread();
+
+        if (currentThread) {
+
+            if (
+                currentThread.messages.length === 0
+            ) {
+
+                currentThread.title =
+                    text.slice(0, 24) +
+                    (
+                        text.length > 24
+                            ? "..."
+                            : ""
+                    );
+            }
+
+            currentThread.messages.push({
+                role: "user",
+                content: text
+            });
+
+            saveThreadsToStorage();
+
+            renderThreads();
+        }
+
+
+        /* =========================================
+           SHOW LOADING MESSAGE
+        ========================================= */
+
+        const loadingMessage =
+            addMessage(
+                "Thinking...",
+                "ai"
+            );
+
+
+        /* =========================================
+           SEND REQUEST
+        ========================================= */
+
         const response =
             await fetch(
                 endpoint,
                 {
-                    method:
-                        "POST",
+                    method: "POST",
+
                     headers: {
                         "Content-Type":
                             "application/json",
+
                         "Authorization":
                             `Bearer ${apiKey}`
                     },
+
                     body:
                         JSON.stringify({
-                            model:
-                                model,
+                            model: model,
+
                             messages: [
                                 {
-                                    role:
-                                        "user",
-                                    content:
-                                        text
+                                    role: "user",
+                                    content: text
                                 }
                             ]
                         })
                 }
             );
-        const data =
-            await response.json();
-        /* ===================================== REMOVE LOADING MESSAGE ===================================== */
+
+
+        /* =========================================
+           READ RESPONSE
+        ========================================= */
+
+        let data = null;
+
+        try {
+
+            data =
+                await response.json();
+
+        } catch (jsonError) {
+
+            console.error(
+                "Could not read API response:",
+                jsonError
+            );
+
+        }
+
+
+        /* =========================================
+           REMOVE LOADING
+        ========================================= */
+
         loadingMessage.remove();
-        /* ===================================== HANDLE API ERROR ===================================== */
+
+
+        /* =========================================
+           HANDLE API ERROR
+        ========================================= */
+
         if (!response.ok) {
+
             console.error(
                 "API error:",
                 data
             );
-            addMessage(
+
+            const errorMessage =
                 data?.error?.message ||
                 data?.error ||
-                "The API request failed.",
-                "ai"
+                `The API returned an error (${response.status}).`;
+
+            showPopup(
+                "API Error",
+                errorMessage,
+                "error"
             );
+
             return;
         }
-        /* ===================================== GET AI RESPONSE ===================================== */
+
+
+        /* =========================================
+           GET AI RESPONSE
+        ========================================= */
+
         const aiResponse =
             data?.choices?.[0]?.message?.content;
+
+
         if (!aiResponse) {
-            addMessage(
-                "The API returned an empty response.",
-                "ai"
+
+            showPopup(
+                "Empty Response",
+                "The API responded successfully, but no AI message was returned.",
+                "warning"
             );
+
             return;
         }
-        /* ===================================== DISPLAY AI RESPONSE ===================================== */
+
+
+        /* =========================================
+           DISPLAY AI RESPONSE
+        ========================================= */
+
         addMessage(
             aiResponse,
             "ai"
         );
-// Save AI response to active thread
+
+
+        /* =========================================
+           SAVE AI RESPONSE
+        ========================================= */
+
         if (currentThread) {
-            currentThread.messages.push({ role: "ai", content: aiResponse });
+
+            currentThread.messages.push({
+                role: "ai",
+                content: aiResponse
+            });
+
             saveThreadsToStorage();
         }
+
     }
+
+    /* =========================================
+       UNEXPECTED ERROR
+    ========================================= */
+
     catch (error) {
+
         console.error(
-            "API request failed:",
+            "SEND MESSAGE ERROR:",
             error
         );
-        loadingMessage.remove();
-        addMessage(
-            "Could not connect to the AI service. Check your API key and internet connection.",
-            "ai"
+
+
+        showPopup(
+            "Something Went Wrong",
+            error?.message ||
+            "The message could not be sent. Please check your API configuration and try again.",
+            "error"
         );
     }
 }
@@ -701,22 +1104,125 @@ function addMessage(
 ) {
     const message =
         document.createElement("div");
+
     message.classList.add(
         "message",
         type
     );
-    message.textContent =
+
+    /* =====================================================
+       MESSAGE CONTENT
+    ===================================================== */
+
+    const messageText =
+        document.createElement("div");
+
+    messageText.classList.add(
+        "message-text"
+    );
+
+    messageText.textContent =
         text;
+
+    /* =====================================================
+       STAR BUTTON
+       Available for both user and AI messages.
+    ===================================================== */
+
+    const starButton =
+        document.createElement("button");
+
+    starButton.classList.add(
+        "message-star"
+    );
+
+    starButton.type =
+        "button";
+
+    starButton.setAttribute(
+        "aria-label",
+        "Star message"
+    );
+
+    starButton.setAttribute(
+        "title",
+        "Star message"
+    );
+
+    starButton.innerHTML = "☆";
+
+    /* =====================================================
+       STAR TOGGLE
+    ===================================================== */
+
+    starButton.addEventListener(
+        "click",
+        event => {
+
+            event.stopPropagation();
+
+            const starred =
+                message.classList.toggle(
+                    "starred"
+                );
+
+            if (starred) {
+
+                starButton.innerHTML =
+                    "★";
+
+                starButton.setAttribute(
+                    "aria-label",
+                    "Unstar message"
+                );
+
+                starButton.setAttribute(
+                    "title",
+                    "Unstar message"
+                );
+
+            } else {
+
+                starButton.innerHTML =
+                    "☆";
+
+                starButton.setAttribute(
+                    "aria-label",
+                    "Star message"
+                );
+
+                starButton.setAttribute(
+                    "title",
+                    "Star message"
+                );
+            }
+        }
+    );
+
+    /* =====================================================
+       ADD CONTENT + STAR
+    ===================================================== */
+
+    message.appendChild(
+        messageText
+    );
+
+    message.appendChild(
+        starButton
+    );
+
     chat.appendChild(
         message
     );
+
     chat.scrollTo({
         top:
             chat.scrollHeight,
         behavior:
             "smooth"
     });
-        return message;
+
+    return message;
 }
 sendButton.addEventListener(
     "click",
@@ -821,9 +1327,11 @@ if (customThemeInput) {
             if (
                 !file.type.startsWith("image/")
             ) {
-                alert(
-                    "Please select an image file."
-                );
+                showPopup(
+    "Invalid Image",
+    "Please select an image file.",
+    "warning"
+);
                 return;
             }
             const reader =
@@ -967,9 +1475,11 @@ createApiButton.addEventListener(
             !name ||
             !key
         ) {
-            alert(
-                "Enter both the API name and API key."
-            );
+            showPopup(
+    "Missing API Details",
+    "Enter both the API name and API key.",
+    "warning"
+);
             return;
         }
         saveApi(
@@ -1431,9 +1941,11 @@ function editApi(
                     ".edit-key-input"
                 ).value.trim();
             if (!newName) {
-                alert(
-                    "API name cannot be empty."
-                );
+                showPopup(
+    "Invalid API Name",
+    "API name cannot be empty.",
+    "warning"
+);
                 return;
             }
             entry.name =

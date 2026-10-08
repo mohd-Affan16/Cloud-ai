@@ -213,13 +213,89 @@ body {
 .message {
     position: relative;
     max-width: min(75%,700px);
-    padding: 13px 17px;
+    padding: 13px 42px 38px 17px;
     border-radius: 18px;
     line-height: 1.5;
     font-size: 15px;
     z-index: 2;
     word-wrap: break-word;
     animation: messageAppear 0.25s ease;
+}
+/* =========================================================
+   MESSAGE STAR
+========================================================= */
+/* =========================================================
+   MESSAGE STAR
+========================================================= */
+
+.message-star {
+    position: absolute;
+
+    right: 8px;
+    bottom: 7px;
+
+    width: 24px;
+    height: 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: none;
+    background: transparent;
+
+    color: rgba(255, 255, 255, 0.55);
+
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 19px;
+    line-height: 1;
+
+    cursor: pointer;
+
+    opacity: 1;
+
+    transition:
+        color 0.2s ease,
+        transform 0.2s ease,
+        filter 0.2s ease;
+}
+
+
+/* Hover */
+
+.message-star:hover {
+    color: #ffffff;
+    transform: scale(1.12);
+}
+
+
+/* =========================================================
+   STARRED
+========================================================= */
+
+.message.starred .message-star {
+    color: #ffd83d;
+
+    filter:
+        drop-shadow(0 0 4px rgba(255, 216, 61, 0.75))
+        drop-shadow(0 0 9px rgba(255, 216, 61, 0.45));
+
+    transform: scale(1.05);
+}
+
+
+/* Starred hover */
+
+.message.starred .message-star:hover {
+    color: #ffe76a;
+
+    filter:
+        drop-shadow(0 0 5px rgba(255, 216, 61, 0.9))
+        drop-shadow(0 0 12px rgba(255, 216, 61, 0.55));
+
+    transform: scale(1.15);
 }
 @keyframes messageAppear {
     from {
@@ -1330,6 +1406,261 @@ body {
     }
 
 }
+/* =========================================================
+   CUSTOM NOTIFICATION POPUP
+========================================================= */
+
+.notification-popup {
+    position: fixed;
+
+    top: 24px;
+    right: 24px;
+
+    z-index: 2000;
+
+    width: min(390px, calc(100% - 32px));
+    min-height: 82px;
+
+    display: flex;
+    align-items: center;
+    gap: 13px;
+
+    padding: 14px 15px;
+
+    background: rgba(20, 20, 22, 0.72);
+
+    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(120%);
+
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 18px;
+
+    box-shadow:
+        0 18px 45px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+    color: #ffffff;
+
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+
+    transform: translateY(-18px) scale(0.97);
+
+    transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0.25s ease;
+}
+
 
 /* =========================================================
-   CHAT HISTORY / THREADS
+   OPEN STATE
+========================================================= */
+
+.notification-popup.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+
+    transform: translateY(0) scale(1);
+}
+
+
+/* =========================================================
+   ICON
+========================================================= */
+
+.notification-icon {
+    width: 38px;
+    height: 38px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 12px;
+
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+
+    color: #ffffff;
+
+    font-size: 17px;
+    font-weight: 700;
+
+    line-height: 1;
+}
+
+
+/* =========================================================
+   CONTENT
+========================================================= */
+
+.notification-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.notification-content h3 {
+    margin: 0 0 4px;
+
+    color: #ffffff;
+
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.notification-content p {
+    margin: 0;
+
+    color: rgba(255, 255, 255, 0.62);
+
+    font-size: 12px;
+    line-height: 1.45;
+
+    overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   CLOSE BUTTON
+========================================================= */
+
+.notification-close {
+    width: 28px;
+    height: 28px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 0;
+
+    border: 1px solid transparent;
+    border-radius: 9px;
+
+    background: transparent;
+
+    color: rgba(255, 255, 255, 0.45);
+
+    font-size: 20px;
+    font-weight: 300;
+    line-height: 1;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        color 0.2s ease,
+        border-color 0.2s ease;
+}
+
+.notification-close:hover {
+    background: rgba(255, 255, 255, 0.08);
+
+    border-color: rgba(255, 255, 255, 0.12);
+
+    color: #ffffff;
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.notification-popup.error {
+    border-color: rgba(255, 90, 90, 0.25);
+}
+
+.notification-popup.error .notification-icon {
+    color: #ff7777;
+
+    background: rgba(255, 80, 80, 0.10);
+
+    border-color: rgba(255, 90, 90, 0.20);
+}
+
+
+/* =========================================================
+   WARNING
+========================================================= */
+
+.notification-popup.warning {
+    border-color: rgba(255, 210, 70, 0.25);
+}
+
+.notification-popup.warning .notification-icon {
+    color: #ffd84d;
+
+    background: rgba(255, 210, 60, 0.10);
+
+    border-color: rgba(255, 210, 60, 0.20);
+}
+
+
+/* =========================================================
+   SUCCESS
+========================================================= */
+
+.notification-popup.success {
+    border-color: rgba(80, 220, 130, 0.25);
+}
+
+.notification-popup.success .notification-icon {
+    color: #62dc8a;
+
+    background: rgba(70, 210, 120, 0.10);
+
+    border-color: rgba(70, 210, 120, 0.20);
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .notification-popup {
+        top: 14px;
+        right: 14px;
+        left: 14px;
+
+        width: auto;
+
+        min-height: 74px;
+
+        padding: 12px 13px;
+
+        border-radius: 15px;
+    }
+
+    .notification-icon {
+        width: 34px;
+        height: 34px;
+
+        border-radius: 10px;
+
+        font-size: 15px;
+    }
+
+    .notification-content h3 {
+        font-size: 13px;
+    }
+
+    .notification-content p {
+        font-size: 11px;
+    }
+
+    .notification-close {
+        width: 26px;
+        height: 26px;
+
+        font-size: 18px;
+    }
+}

@@ -511,5 +511,37 @@
         </div>
     </div>
     <script src="app.js"></script>
+<!-- =====================================================
+     CUSTOM NOTIFICATION POPUP
+===================================================== -->
+
+<div
+    id="notificationPopup"
+    class="notification-popup"
+    aria-hidden="true"
+>
+    <div class="notification-icon" id="notificationIcon">
+        !
+    </div>
+
+    <div class="notification-content">
+        <h3 id="notificationTitle">
+            Error
+        </h3>
+
+        <p id="notificationMessage">
+            Something went wrong.
+        </p>
+    </div>
+
+    <button
+        id="notificationClose"
+        class="notification-close"
+        type="button"
+        aria-label="Close notification"
+    >
+        ×
+    </button>
+</div>
 </body>
 </html>
