@@ -9,7 +9,14 @@ const messageInput = document.getElementById("messageInput");
 const sendButton = document.getElementById("sendButton");
 const welcome = document.getElementById("welcome");
 const pages = document.querySelectorAll(".app-page");
-const menuItems = document.querySelectorAll(".menu-item");
+// const menuItems = document.querySelectorAll(".menu-item");
+// new code 8-10-26=====
+const menuItems = document.querySelectorAll(".menu-item[data-page]");
+const logoutButton = document.getElementById("logoutButton");
+const settingsNavigationItems =
+    document.querySelectorAll(".settings-navigation-item");
+
+// ========
 const backButtons = document.querySelectorAll(".back-button");
 const themeCards = document.querySelectorAll(".theme-card");
 /* ========================================================= CUSTOM THEME ========================================================= */
@@ -347,7 +354,14 @@ sideMenu.addEventListener(
         event.stopPropagation();
     }
 );
-
+//new code 8-10-26
+logoutButton.addEventListener(
+    "click",
+    () => {
+        window.location.href = "/auth/logout";
+    }
+);
+//=====
 /* =========================================================
    THREAD / CHAT HISTORY ENGINE
 ========================================================= */
@@ -731,6 +745,14 @@ menuItems.forEach(
         );
     }
 );
+settingsNavigationItems.forEach(item => {
+    item.addEventListener("click", event => {
+        event.stopPropagation();
+
+        const pageId = item.dataset.page;
+        openPage(pageId);
+    });
+});
 function openPage(pageId) {
     sideMenu.classList.remove("open");
     apiSwitcherMenu.classList.remove("open");

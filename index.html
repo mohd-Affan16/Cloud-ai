@@ -44,7 +44,7 @@
 
         <!-- SETTINGS -->
 
-        <button
+        <!-- <button
             class="menu-item"
             data-page="settingsPage"
             type="button"
@@ -80,7 +80,40 @@
             </span>
             <span>API</span>
         </button>
-    </aside>
+     -->
+    <!-- SETTINGS -->
+
+<button
+    class="menu-item"
+    data-page="settingsPage"
+    type="button"
+>
+    <span class="menu-item-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5A3.5 3.5 0 0 0 12 15.5Z"></path>
+            <path d="M19.4 15A1.7 1.7 0 0 0 19.7 16.8L19.8 16.9L17.9 18.8L17.8 18.7A1.7 1.7 0 0 0 16 18.4A1.7 1.7 0 0 0 15 20V20.2H9V20A1.7 1.7 0 0 0 8 18.4A1.7 1.7 0 0 0 6.2 18.7L6.1 18.8L4.2 16.9L4.3 16.8A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 3 14H2.8V10H3A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 4.3 7.2L4.2 7.1L6.1 5.2L6.2 5.3A1.7 1.7 0 0 0 8 5.6A1.7 1.7 0 0 0 9 4V3.8H15V4A1.7 1.7 0 0 0 16 5.6A1.7 1.7 0 0 0 17.8 5.3L17.9 5.2L19.8 7.1L19.7 7.2A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 21 10H21.2V14H21A1.7 1.7 0 0 0 19.4 15Z"></path>
+        </svg>
+    </span>
+    <span>Settings</span>
+</button>
+
+<!-- LOG OUT -->
+
+<button
+    id="logoutButton"
+    class="menu-item logout-menu-item"
+    type="button"
+>
+    <span class="menu-item-icon">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M10 5H6.5A2.5 2.5 0 0 0 4 7.5V16.5A2.5 2.5 0 0 0 6.5 19H10"></path>
+            <path d="M14 8L18 12L14 16"></path>
+            <path d="M18 12H9"></path>
+        </svg>
+    </span>
+    <span>Log out</span>
+</button>
+</aside>
     <!-- ===================================================== CHAT ====================================================== -->
     <main id="chat">
         <section id="welcome" class="welcome-card">
@@ -147,15 +180,16 @@
         class="app-page"
     >
         <div class="page-header">
+            
+            <h1>
+                Settings
+            </h1>
             <button
                 class="back-button"
                 type="button"
             >
                 ←
             </button>
-            <h1>
-                Settings
-            </h1>
         </div>
         <div class="glass-card settings-card">
             <h2>
@@ -206,7 +240,75 @@
                     type="checkbox"
                     checked
                 >
-            </div>
+                </div>
+                <h2>
+        More
+    </h2>
+    <div class="settings-navigation-grid">
+    
+
+    <!-- THEMES -->
+    <button
+        class="settings-navigation-item"
+        data-page="themesPage"
+        type="button"
+    >
+        <span class="settings-navigation-left">
+            <span class="menu-item-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3C7 3 3 6.4 3 10.8C3 14.2 5.7 16 8.2 16H10C11.1 16 12 16.9 12 18C12 19.7 13.3 21 15 21C18.3 21 21 16.5 21 11.5C21 6.8 17 3 12 3Z"></path>
+                    <circle cx="7.5" cy="10" r="0.8"></circle>
+                    <circle cx="10" cy="7" r="0.8"></circle>
+                    <circle cx="14" cy="7" r="0.8"></circle>
+                    <circle cx="17" cy="10" r="0.8"></circle>
+                </svg>
+            </span>
+
+            <!-- <span>
+                Themes
+            </span> -->
+            <span class="settings-navigation-text">
+                <strong>Themes</strong>
+                <small>Choose how your assistant looks.</small>
+            </span>
+        </span>
+
+        <span class="settings-navigation-arrow">
+            →
+        </span>
+    </button>
+
+    <!-- API MANAGEMENT -->
+    <button
+        class="settings-navigation-item"
+        data-page="apiPage"
+        type="button"
+    >
+        <span class="settings-navigation-left">
+            <span class="menu-item-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3H13.5A2.5 2.5 0 0 1 16 5.5V7"></path>
+                    <rect x="4" y="7" width="16" height="12" rx="2"></rect>
+                    <path d="M8 12H16M8 15H13"></path>
+                </svg>
+            </span>
+
+            <!-- <span>
+                API Management
+            </span> -->
+
+            <span class="settings-navigation-text">
+             <strong>API Management</strong>
+             <small>Manage the providers used by your assistant.</small>
+            </span>
+        </span>
+
+        <span class="settings-navigation-arrow">
+            →
+        </span>
+    </button>
+            
+        </div>
         </div>
     </section>
     <!-- ===================================================== THEMES PAGE ====================================================== -->
@@ -215,15 +317,16 @@
         class="app-page"
     >
         <div class="page-header">
+            
+            <h1>
+                Themes
+            </h1>
             <button
                 class="back-button"
                 type="button"
             >
                 ←
             </button>
-            <h1>
-                Themes
-            </h1>
         </div>
         <p class="page-description">
             Choose how your assistant looks.
@@ -380,15 +483,16 @@
         class="app-page"
     >
         <div class="page-header">
-            <button
+           
+            <h1>
+                API Management
+            </h1>
+             <button
                 class="back-button"
                 type="button"
             >
                 ←
             </button>
-            <h1>
-                API Management
-            </h1>
         </div>
         <p class="page-description">
             Add and manage the providers used by your assistant.
