@@ -1,18 +1,58 @@
 [
-  {
-    "name": "Purple",
-    "image": "/assets/themes/purple.jpeg"
-  },
-  {
-    "name": "Green",
-    "image": "/assets/themes/green.jpeg"
-  },
-  {
-    "name": "Orange",
-    "image": "/assets/themes/orange.jpeg"
-  },
-  {
-    "name": "Blue",
-    "image": "/assets/themes/blue.jpeg"
-  }
+    {
+        "name": "Green",
+        "image": "/assets/themes/green.jpeg"
+    },
+    {
+        "name": "Orange",
+        "image": "/assets/themes/orange.jpeg"
+    },
+    {
+        "name": "Blue",
+        "image": "/assets/themes/blue.jpeg"
+    },
+    {
+        "name": "Blossom",
+        "image": "/assets/themes/blossom.jpeg"
+    },
+    {
+        "name": "Crimson",
+        "image": "/assets/themes/crimson.jpeg"
+    },
+    {
+        "name": "Moon",
+        "image": "/assets/themes/moon.jpeg"
+    },
+    {
+        "name": "Pikapiiii",
+        "image": "/assets/themes/pikapiiii.jpeg"
+    },
+    {
+        "name": "Pink",
+        "image": "/assets/themes/pink.jpeg"
+    },
+    {
+        "name": "Purple",
+        "image": "/assets/themes/purple.jpeg"
+    },
+    {
+        "name": "Sakura Days",
+        "image": "/assets/themes/sakura-days.jpeg"
+    },
+    {
+        "name": "Surprise",
+        "image": "/assets/themes/surprise.jpeg"
+    },
+    {
+        "name": "Surprise 2",
+        "image": "/assets/themes/surprise2.jpeg"
+    },
+    {
+        "name": "View",
+        "image": "/assets/themes/view.jpeg"
+    },
+    {
+        "name": "Wonder 1",
+        "image": "/assets/themes/wonder-1.jpeg"
+    }
 ]
