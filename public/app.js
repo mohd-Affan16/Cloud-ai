@@ -216,63 +216,6 @@ document.addEventListener(
         }
     }
 );
-
-/* ========================================================= CHAT
-========================================================= */
-async function sendMessage() {
-}
-
-
-
-/* =========================================================
-   HIDE NOTIFICATION
-========================================================= */
-
-function hidePopup() {
-
-    const popup =
-        document.getElementById(
-            "notificationPopup"
-        );
-
-    if (!popup) {
-        return;
-    }
-
-
-    popup.classList.remove(
-        "show"
-    );
-
-    popup.setAttribute(
-        "aria-hidden",
-        "true"
-    );
-
-    clearTimeout(
-        notificationTimer
-    );
-}
-
-
-/* =========================================================
-   CLOSE BUTTON
-========================================================= */
-
-document.addEventListener(
-    "click",
-    event => {
-
-        if (
-            event.target.closest(
-                "#notificationClose"
-            )
-        ) {
-
-            hidePopup();
-        }
-    }
-);
 /* ========================================================= THEME DATA ========================================================= */
 const themes = {
     purple: {
@@ -336,8 +279,7 @@ const PROVIDERS = {
 };
 function getProviderConfig(providerKey) {
     const provider =
-        PROVIDERS[providerKey] ||
-        PROVIDERS.huggingface;
+        PROVIDERS[providerKey] || PROVIDERS.huggingface;
     return provider;
 }
 /* ========================================================= SIDE MENU ========================================================= */
@@ -382,24 +324,11 @@ let activeThreadId =
     ) || null;
 
 
-/* =========================================================
-   SAVE THREADS
-========================================================= */
-
+/* =========================================================SAVE THREADS========================================================= */
 function saveThreadsToStorage() {
-
-    localStorage.setItem(
-        "cloud_ai_threads",
-        JSON.stringify(threads)
-    );
-
-    localStorage.setItem(
-        "cloud_ai_active_thread",
-        activeThreadId
-    );
+    localStorage.setItem("cloud_ai_threads",JSON.stringify(threads));
+    localStorage.setItem("cloud_ai_active_thread",activeThreadId);
 }
-
-
 /* =========================================================
    GET ACTIVE THREAD
 ========================================================= */
@@ -582,28 +511,6 @@ function deleteThread(
 
     renderThreads();
 }
-
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
-function escapeHtml(
-    text
-) {
-
-    const div =
-        document.createElement(
-            "div"
-        );
-
-    div.textContent =
-        text;
-
-    return div.innerHTML;
-}
-
-
 /* =========================================================
    RENDER THREADS
 ========================================================= */
