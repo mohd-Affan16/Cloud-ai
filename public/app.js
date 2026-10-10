@@ -345,6 +345,29 @@ function dismissWelcome() {
     }
     welcome.classList.add("hidden");
 }
+async function saveMessageToServer(conversationId, role, content) {
+    try {
+        const response = await fetch("/api/conversations/messages", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                conversationId,
+                role,
+                content
+            })
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || "Message could not be saved.");
+        }
+        return true;
+    } catch (error) {
+        console.error("Conversation storage error:", error);
+        return false;
+    }
+}
 /* ========================================================= CHAT ========================================================= */
 async function sendMessage() {
     try {
@@ -416,6 +439,9 @@ async function sendMessage() {
             saveThreadsToStorage();
             renderThreads();
         }
+        if (currentThread) {
+    await saveMessageToServer(currentThread.id, "user", text);
+}
         /* =========================================
            SHOW LOADING MESSAGE
         ========================================= */
@@ -484,6 +510,9 @@ async function sendMessage() {
             });
             saveThreadsToStorage();
         }
+        if (currentThread) {
+    await saveMessageToServer(currentThread.id, "assistant", aiResponse);
+}
     } catch (error) {
         /* =========================================
        UNEXPECTED ERROR
