@@ -206,79 +206,16 @@
                 <button class="back-button" type="button">←</button>
             </div>
             <p class="page-description">Choose how your assistant looks.</p>
-            <!-- THEME SCROLL -->
-            <div class="theme-scroll-wrapper">
-                <div class="theme-grid">
-                    <!-- PURPLE -->
-                    <button class="theme-card" data-theme="purple" type="button">
-                        <div
-                            class="theme-preview"
-                            style="background-image: url(&quot;/assets/themes/purple.jpeg&quot;)"
-                        >
-                            <div class="preview-overlay"></div>
-                            <div class="preview-system">● System · Ready</div>
-                            <div class="preview-ai">Hi! How can I help?</div>
-                            <div class="preview-user">Show me something cool.</div>
-                            <div class="preview-ai preview-small">Sure — let's build something.</div>
-                        </div>
-                        <div class="theme-name">
-                            <span class="theme-dot"></span>
-                            Purple
-                        </div>
-                    </button>
-                    <!-- GREEN -->
-                    <button class="theme-card" data-theme="green" type="button">
-                        <div
-                            class="theme-preview"
-                            style="background-image: url(&quot;/assets/themes/green.jpeg&quot;)"
-                        >
-                            <div class="preview-overlay"></div>
-                            <div class="preview-system">● System · Ready</div>
-                            <div class="preview-ai">Good evening!</div>
-                            <div class="preview-user">Let's build something.</div>
-                            <div class="preview-ai preview-small">I'm ready when you are.</div>
-                        </div>
-                        <div class="theme-name">
-                            <span class="theme-dot"></span>
-                            Green
-                        </div>
-                    </button>
-                    <!-- ORANGE -->
-                    <button class="theme-card" data-theme="orange" type="button">
-                        <div
-                            class="theme-preview"
-                            style="background-image: url(&quot;/assets/themes/orange.jpeg&quot;)"
-                        >
-                            <div class="preview-overlay"></div>
-                            <div class="preview-system">● System · Ready</div>
-                            <div class="preview-ai">Hey! What's up?</div>
-                            <div class="preview-user">Start a new chat.</div>
-                            <div class="preview-ai preview-small">Let's do it.</div>
-                        </div>
-                        <div class="theme-name">
-                            <span class="theme-dot"></span>
-                            Orange
-                        </div>
-                    </button>
-                    <!-- BLUE -->
-                    <button class="theme-card" data-theme="blue" type="button">
-                        <div
-                            class="theme-preview"
-                            style="background-image: url(&quot;/assets/themes/blue.jpeg&quot;)"
-                        >
-                            <div class="preview-overlay"></div>
-                            <div class="preview-system">● System · Ready</div>
-                            <div class="preview-ai">What can I help with?</div>
-                            <div class="preview-user">Explain this to me.</div>
-                            <div class="preview-ai preview-small">Of course.</div>
-                        </div>
-                        <div class="theme-name">
-                            <span class="theme-dot"></span>
-                            Blue
-                        </div>
-                    </button>
-                </div>
-            </div>
+           
+<!-- Theme gallery: JavaScript creates the cards here -->
+<div class="theme-scroll-wrapper">
+    <div
+        id="themeGallery"
+        class="theme-grid"
+        aria-label="Available themes"
+    ></div>
+</div>
+
             <!-- CUSTOM THEME -->
             <div class="custom-theme-card">
                 <label for="customThemeInput" class="custom-theme-icon"> + </label>
@@ -334,7 +271,8 @@
                 </div>
             </div>
         </div>
-        <script src="/app.js"></script>
+        <script src="/js/themes.js"></script>
+<script src="/app.js"></script>
         <!-- =====================================================
      CUSTOM NOTIFICATION POPUP
 ===================================================== -->

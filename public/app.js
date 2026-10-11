@@ -102,28 +102,7 @@ document.addEventListener("click", (event) => {
     }
 });
 /* ========================================================= THEME DATA ========================================================= */
-const themes = {
-    purple: {
-        image: "assets/themes/purple.jpeg",
-        user: "#8b5cf6",
-        ai: "rgba(20,20,24,0.88)"
-    },
-    green: {
-        image: "assets/themes/green.jpeg",
-        user: "#15803d",
-        ai: "rgba(14,24,18,0.88)"
-    },
-    orange: {
-        image: "assets/themes/orange.jpeg",
-        user: "#ea580c",
-        ai: "rgba(25,18,13,0.88)"
-    },
-    blue: {
-        image: "assets/themes/blue.jpeg",
-        user: "#1d4ed8",
-        ai: "rgba(13,19,30,0.88)"
-    }
-};
+const themes = window.CLOUD_THEMES;
 const PROVIDERS = {
     groq: {
         label: "Groq",
@@ -587,11 +566,97 @@ function autoResize() {
     messageInput.style.height = Math.min(messageInput.scrollHeight, 150) + "px";
 }
 /* ========================================================= THEMES ========================================================= */
-themeCards.forEach((card) => {
-    card.addEventListener("click", () => {
-        changeTheme(card.dataset.theme);
-    });
-});
+
+/* =========================================
+   GENERATE THEME CARDS
+========================================= */
+
+const themeGallery = document.getElementById("themeGallery");
+
+function renderThemeCards() {
+    if (!themeGallery) return;
+
+    themeGallery.replaceChildren();
+
+    Object.entries(window.CLOUD_THEMES || {}).forEach(
+        ([themeId, theme]) => {
+            const card = document.createElement("button");
+
+            card.type = "button";
+            card.className = "theme-card";
+            card.dataset.theme = themeId;
+            card.setAttribute(
+                "aria-label",
+                `Apply ${theme.name} theme`
+            );
+
+            const preview = document.createElement("div");
+            preview.className = "theme-preview";
+
+            preview.style.backgroundImage =
+                `url("${theme.image}")`;
+
+            preview.style.setProperty(
+                "--preview-user",
+                theme.user
+            );
+
+            preview.style.setProperty(
+                "--preview-ai",
+                theme.ai
+            );
+
+            const overlay = document.createElement("div");
+            overlay.className = "preview-overlay";
+
+            const system = document.createElement("div");
+            system.className = "preview-system";
+            system.textContent = "● System · Ready";
+
+            const ai = document.createElement("div");
+            ai.className = "preview-ai";
+            ai.textContent = "Hi! How can I help?";
+
+            const user = document.createElement("div");
+            user.className = "preview-user";
+            user.textContent = "Let's build something.";
+
+            const aiSmall = document.createElement("div");
+            aiSmall.className = "preview-ai preview-small";
+            aiSmall.textContent = "Sure — let's get started.";
+
+            preview.append(
+                overlay,
+                system,
+                ai,
+                user,
+                aiSmall
+            );
+
+            const name = document.createElement("div");
+            name.className = "theme-name";
+
+            const dot = document.createElement("span");
+            dot.className = "theme-dot";
+            dot.style.backgroundColor = theme.user;
+
+            const label = document.createElement("span");
+            label.textContent = theme.name;
+
+            name.append(dot, label);
+            card.append(preview, name);
+
+            card.addEventListener("click", () => {
+                changeTheme(themeId);
+            });
+
+            themeGallery.appendChild(card);
+        }
+    );
+}
+
+renderThemeCards();
+
 function changeTheme(themeName) {
     const selected = themes[themeName];
     if (!selected) {
