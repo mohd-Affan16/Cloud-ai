@@ -632,7 +632,7 @@ body {
 /* Theme card */
 
 .theme-card {
-    flex: 0 0 270px;
+    flex: 0 0 350px;
     min-width: 0;
     padding: 0;
     overflow: hidden;
@@ -669,7 +669,7 @@ body {
     flex-direction: column;
     align-items: flex-start;
     gap: 9px;
-    height: 170px;
+    height: 235px;
     padding: 12px;
     overflow: hidden;
     background-size: cover;
@@ -700,6 +700,8 @@ body {
 
 .preview-system {
     background: rgba(0, 0, 0, 0.45);
+    align-self:center;
+    margin-bottom:48;
 }
 
 .preview-ai {
@@ -717,7 +719,7 @@ body {
 
 /* Theme name */
 
-.theme-name {
+    .theme-name {
     display: flex;
     align-items: center;
     gap: 9px;
@@ -730,7 +732,7 @@ body {
     height: 10px;
     border-radius: 50%;
     background: var(--preview-user, #8b5cf6);
-}
+    }
 .custom-theme-card {
     width: min(1000px, 100%);
     min-height: 100px;
