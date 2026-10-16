@@ -25,6 +25,9 @@
                 <div class="threads-header">Recent Chats</div>
                 <div id="threadsList" class="threads-list"></div>
             </div>
+            <button id="testStorageButton">
+    Test Conversation Storage
+</button>
             <!-- SETTINGS -->
             <!-- <button
             class="menu-item"
@@ -127,8 +130,8 @@
                 <button class="back-button" type="button">←</button>
             </div>
             <div class="glass-card settings-card">
-                <h2>Appearance</h2>
-                <div class="setting-row">
+                <h2>Core Settings</h2>
+                <!-- <div class="setting-row">
                     <div>
                         <strong> Glass Interface </strong>
                         <p>Use the translucent glass interface.</p>
@@ -141,15 +144,55 @@
                         <p>Enable interface animations.</p>
                     </div>
                     <input type="checkbox" checked />
-                </div>
-                <h2>Chat</h2>
+                </div> -->
+                 <!-- API MANAGEMENT -->
+                    <button class="settings-navigation-item" data-page="apiPage" type="button">
+                        <span class="settings-navigation-left">
+                            <span class="menu-item-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3H13.5A2.5 2.5 0 0 1 16 5.5V7"></path>
+                                    <rect x="4" y="7" width="16" height="12" rx="2"></rect>
+                                    <path d="M8 12H16M8 15H13"></path>
+                                </svg>
+                            </span>
+                            <!-- <span>
+                API Management
+            </span> -->
+                            <span class="settings-navigation-text">
+                                <strong>API Management</strong>
+                                <small>Manage the providers used by your assistant.</small>
+                            </span>
+                        </span>
+                        <span class="settings-navigation-arrow"> → </span>
+                    </button>
+                    <button
+                            id="localStorageSettingsButton"
+                            class="settings-navigation-item"
+                            data-page="localStoragePage"
+                            type="button"
+                        >
+                        <span class="settings-navigation-left">
+        <span class="menu-item-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6A2 2 0 0 1 6 4H10L12 6H18A2 2 0 0 1 20 8V18A2 2 0 0 1 18 20H6A2 2 0 0 1 4 18Z"></path>
+                <path d="M8 12H16M8 15H13"></path>
+            </svg>
+        </span>
+        <span class="settings-navigation-text">
+            <strong>Local Conversation Storage</strong>
+            <small>Choose where your conversation history is saved.</small>
+        </span>
+    </span>
+    <span class="settings-navigation-arrow"> → </span>
+</button>
+                <!-- <h2>Chat</h2>
                 <div class="setting-row">
                     <div>
                         <strong> Enter to Send </strong>
                         <p>Press Enter to send a message.</p>
                     </div>
                     <input id="enterToSend" type="checkbox" checked />
-                </div>
+                </div> -->
                 <h2>More</h2>
                 <div class="settings-navigation-grid">
                     <!-- THEMES -->
@@ -176,27 +219,13 @@
                         </span>
                         <span class="settings-navigation-arrow"> → </span>
                     </button>
-                    <!-- API MANAGEMENT -->
-                    <button class="settings-navigation-item" data-page="apiPage" type="button">
-                        <span class="settings-navigation-left">
-                            <span class="menu-item-icon">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3H13.5A2.5 2.5 0 0 1 16 5.5V7"></path>
-                                    <rect x="4" y="7" width="16" height="12" rx="2"></rect>
-                                    <path d="M8 12H16M8 15H13"></path>
-                                </svg>
-                            </span>
-                            <!-- <span>
-                API Management
-            </span> -->
-                            <span class="settings-navigation-text">
-                                <strong>API Management</strong>
-                                <small>Manage the providers used by your assistant.</small>
-                            </span>
-                        </span>
-                        <span class="settings-navigation-arrow"> → </span>
-                    </button>
+                   
                 </div>
+                
+<!-- LOCAL CONVERSATION STORAGE -->
+
+    
+
             </div>
         </section>
         <!-- ===================================================== THEMES PAGE ====================================================== -->
@@ -272,6 +301,7 @@
             </div>
         </div>
         <script src="/js/themes.js"></script>
+        <script src="/local-conversation-storage.js"></script>
 <script src="/app.js"></script>
         <!-- =====================================================
      CUSTOM NOTIFICATION POPUP
@@ -286,5 +316,6 @@
                 ×
             </button>
         </div>
+        
     </body>
 </html>

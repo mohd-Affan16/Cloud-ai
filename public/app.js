@@ -324,29 +324,58 @@ function dismissWelcome() {
     }
     welcome.classList.add("hidden");
 }
+
 async function saveMessageToServer(conversationId, role, content) {
-    try {
-        const response = await fetch("/api/conversations/messages", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
+    // 1. Save the message to the selected local folder
+    if (LocalConversationStorage.isFolderSelected()) {
+        try {
+            const localRole =
+                role === "ai" ? "assistant" : role;
+
+            await LocalConversationStorage.saveMessage(
                 conversationId,
-                role,
+                localRole,
                 content
-            })
-        });
+            );
+
+            console.log("Message saved locally:", localRole);
+        } catch (error) {
+            console.error("Local file save failed:", error);
+        }
+    }
+
+    // 2. Save the message to the existing server storage
+    try {
+        const response = await fetch(
+            "/api/conversations/messages",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    conversationId,
+                    role,
+                    content
+                })
+            }
+        );
+
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || "Message could not be saved.");
+
+            throw new Error(
+                error.error || "Message could not be saved."
+            );
         }
+
         return true;
     } catch (error) {
         console.error("Conversation storage error:", error);
         return false;
     }
 }
+
 /* ========================================================= CHAT ========================================================= */
 async function sendMessage() {
     try {
@@ -1153,3 +1182,28 @@ document.addEventListener("keydown", (event) => {
         closeDeleteModal();
     }
 });
+// TEMPORARY TEST — Local conversation storage
+async function testLocalStorage() {
+    try {
+        const folderName =
+            await LocalConversationStorage.chooseFolder();
+
+        console.log("Selected folder:", folderName);
+
+        const result =
+            await LocalConversationStorage.saveMessage(
+                "thread_test123",
+                "user",
+                "This is a test message."
+            );
+
+        console.log("Storage test successful:", result);
+        alert("Storage test successful! Check your selected folder.");
+    } catch (error) {
+        console.error("Storage test failed:", error);
+        alert("Storage test failed: " + error.message);
+    }
+}
+document
+    .getElementById("testStorageButton")
+    .addEventListener("click", testLocalStorage);

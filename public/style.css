@@ -1099,7 +1099,7 @@ body {
    ========================================================= */
 
 .settings-navigation-item {
-    width: 70%;
+    width: 100%;
     display: flex;
     margin-top: 10px;
     align-items: center;
