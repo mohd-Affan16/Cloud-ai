@@ -4,7 +4,8 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --no-network-family-autoselection server.js"
   },
   "repository": {
     "type": "git",
@@ -19,11 +20,14 @@
   },
   "homepage": "https://github.com/mohd-Affan16/Cloud-ai#readme",
   "dependencies": {
+    "@neondatabase/serverless": "^1.2.0",
     "dotenv": "^18.0.6",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "pg": "^8.23.1",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "prettier": "^3.9.9"
