@@ -395,36 +395,38 @@ async function sendMessage() {
             showPopup("No API Selected", "Please add an API and select it before sending a message.", "warning");
             return;
         }
-        /* =========================================
-           GET API KEY
-        ========================================= */
-        const apiKey = apiSecrets.get(activeApi.id);
-        if (!apiKey) {
-            showPopup(
-                "API Key Missing",
-                `The API key for "${activeApi.name}" is not available. Please edit this API and enter the key again.`,
-                "warning"
-            );
-            return;
-        }
-        /* =========================================
-           GET PROVIDER CONFIG
-        ========================================= */
-        const providerConfig = getProviderConfig(activeApi.provider);
-        if (!providerConfig) {
-            showPopup("Provider Error", `The configuration for "${activeApi.provider}" could not be found.`, "error");
-            return;
-        }
-        const endpoint = providerConfig.endpoint;
-        const model = activeApi.model || providerConfig.model;
-        if (!endpoint || !model) {
-            showPopup(
-                "Configuration Error",
-                "The selected API is missing its endpoint or model configuration.",
-                "error"
-            );
-            return;
-        }
+        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
+        //  =========================================
+        //    GET API KEY
+        // =========================================
+        // const apiKey = apiSecrets.get(activeApi.id);
+        // if (!apiKey) {
+        //     showPopup(
+        //         "API Key Missing",
+        //         `The API key for "${activeApi.name}" is not available. Please edit this API and enter the key again.`,
+        //         "warning"
+        //     );
+        //     return;
+        // }
+        //  =========================================
+        //    GET PROVIDER CONFIG
+        // =========================================
+        // const providerConfig = getProviderConfig(activeApi.provider);
+        // if (!providerConfig) {
+        //     showPopup("Provider Error", `The configuration for "${activeApi.provider}" could not be found.`, "error");
+        //     return;
+        // }
+        // const endpoint = providerConfig.endpoint;
+        // const model = activeApi.model || providerConfig.model;
+        // if (!endpoint || !model) {
+        //     showPopup(
+        //         "Configuration Error",
+        //         "The selected API is missing its endpoint or model configuration.",
+        //         "error"
+        //     );
+        //     return;
+        // }
+        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader 17 oct
         /* =========================================
            SHOW USER MESSAGE
         ========================================= */
@@ -454,34 +456,96 @@ async function sendMessage() {
            SHOW LOADING MESSAGE
         ========================================= */
         const loadingMessage = addMessage("Thinking...", "ai");
+
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
+        //  =========================================
+        //    SEND REQUEST
+        // =========================================
+        // const response = await fetch(endpoint, {
+        //     method: "POST",
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //         Authorization: `Bearer ${apiKey}`
+        //     },
+        //     body: JSON.stringify({
+        //         model: model,
+        //         messages: [
+        //             {
+        //                 role: "user",
+        //                 content: text
+        //             }
+        //         ]
+        //     })
+        // });
+
         /* =========================================
-           SEND REQUEST
+           SEND REQUEST TO OUR BACKEND
         ========================================= */
-        const response = await fetch(endpoint, {
+        const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${apiKey}`
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
-                model: model,
-                messages: [
-                    {
-                        role: "user",
-                        content: text
-                    }
-                ]
+                apiId: activeApi.id,
+                message: text
             })
         });
+
         /* =========================================
            READ RESPONSE
         ========================================= */
         let data = null;
+
         try {
             data = await response.json();
         } catch (jsonError) {
-            console.error("Could not read API response:", jsonError);
+            console.error("Could not read chat response:", jsonError);
         }
+
+        /* =========================================
+           REMOVE LOADING
+        ========================================= */
+        loadingMessage.remove();
+
+        /* =========================================
+           HANDLE API ERROR
+        ========================================= */
+        if (!response.ok) {
+            console.error("Chat request failed:", response.status, data);
+
+            const errorMessage =
+                data?.error ||
+                `The chat request failed (${response.status}).`;
+
+            showPopup("Chat Error", errorMessage, "error");
+            return;
+        }
+
+        /* =========================================
+           GET AI RESPONSE
+        ========================================= */
+        const aiResponse = data?.reply;
+
+        if (typeof aiResponse !== "string" || !aiResponse.trim()) {
+            showPopup(
+                "Empty Response",
+                "The server did not return an AI message.",
+                "warning"
+            );
+            return;
+        }
+
+
+        // =========================================
+        //    READ RESPONSE
+        // =========================================
+        // let data = null;
+        // try {
+        //     data = await response.json();
+        // } catch (jsonError) {
+        //     console.error("Could not read API response:", jsonError);
+        // }
         /* =========================================
            REMOVE LOADING
         ========================================= */
@@ -496,14 +560,15 @@ async function sendMessage() {
             showPopup("API Error", errorMessage, "error");
             return;
         }
-        /* =========================================
-           GET AI RESPONSE
-        ========================================= */
-        const aiResponse = data?.choices?.[0]?.message?.content;
-        if (!aiResponse) {
-            showPopup("Empty Response", "The API responded successfully, but no AI message was returned.", "warning");
-            return;
-        }
+
+        //  =========================================
+        //    GET AI RESPONSE
+        // =========================================
+        // const aiResponse = data?.choices?.[0]?.message?.content;
+        // if (!aiResponse) {
+        //     showPopup("Empty Response", "The API responded successfully, but no AI message was returned.", "warning");
+        //     return;
+        // }
         /* =========================================
            DISPLAY AI RESPONSE
         ========================================= */
@@ -726,44 +791,135 @@ if (customThemeInput) {
         reader.readAsDataURL(file);
     });
 }
-/* ========================================================= LOAD CUSTOM WALLPAPER ========================================================= */
-const savedCustomTheme = localStorage.getItem("customTheme");
-if (savedCustomTheme && savedTheme === "custom") {
-    chat.style.backgroundImage = `url("${savedCustomTheme}")`;
-}
+
+//  ========================================================= LOAD CUSTOM WALLPAPER =========================================================
+// const savedCustomTheme = localStorage.getItem("customTheme");
+// if (savedCustomTheme && savedTheme === "custom") {
+//     chat.style.backgroundImage = `url("${savedCustomTheme}")`;
+// }
+//  ========================================================= API DATA =========================================================
+// /* IMPORTANT: Raw API keys are NOT stored in localStorage. They are kept only in this in-memory Map until the backend is implemented. */
+// const apiSecrets = new Map();
+// let apiEntries = [];
+//  ========================================================= LOAD API METADATA =========================================================
+// let savedApiMetadata = [];
+// try {
+//     savedApiMetadata = JSON.parse(localStorage.getItem("apiMetadata") || "[]");
+//     if (!Array.isArray(savedApiMetadata)) {
+//         savedApiMetadata = [];
+//     }
+// } catch (error) {
+//     console.warn("Could not read API metadata.", error);
+//     savedApiMetadata = [];
+// }
+// savedApiMetadata.forEach((entry) => {
+//     const provider = PROVIDERS[entry.provider]
+//         ? entry.provider
+//         : entry.name.toLowerCase().includes("groq")
+//           ? "groq"
+//           : "huggingface";
+//     apiEntries.push({
+//         id: entry.id,
+//         name: entry.name,
+//         provider,
+//         model: entry.model || PROVIDERS[provider].model,
+//         maskLength: entry.maskLength || 16,
+//         active: Boolean(entry.active)
+//     });
+// });
+// normalizeActiveApi();
+// renderApiEntries();
+// renderApiSwitcher();
+
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
 /* ========================================================= API DATA ========================================================= */
-/* IMPORTANT: Raw API keys are NOT stored in localStorage. They are kept only in this in-memory Map until the backend is implemented. */
+
 const apiSecrets = new Map();
 let apiEntries = [];
-/* ========================================================= LOAD API METADATA ========================================================= */
-let savedApiMetadata = [];
-try {
-    savedApiMetadata = JSON.parse(localStorage.getItem("apiMetadata") || "[]");
-    if (!Array.isArray(savedApiMetadata)) {
-        savedApiMetadata = [];
+let isLoadingApis = false;
+
+/* ========================================================= LOAD API KEYS FROM NEON ========================================================= */
+
+async function loadApiEntries() {
+    if (isLoadingApis) return;
+    isLoadingApis = true;
+
+    try {
+        const response = await fetch("/api/keys", {
+            method: "GET",
+            credentials: "same-origin",
+            headers: {
+                "Accept": "application/json"
+            }
+        });
+
+        if (response.status === 401) {
+            showPopup(
+                "Login Required",
+                "Please log in to load your saved API keys.",
+                "warning"
+            );
+            return;
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not load API keys.");
+        }
+
+        if (!Array.isArray(data.keys)) {
+            throw new Error("Unexpected response from the server.");
+        }
+
+        // Preserve the user's active selection between refreshes.
+        let savedActiveId = null;
+
+        try {
+            savedActiveId = localStorage.getItem("activeApiId");
+        } catch (error) {
+            console.warn("Could not read active API selection.");
+        }
+
+        apiEntries = data.keys.map((item) => ({
+            id: item.id,
+            name: item.label,
+            provider: PROVIDERS[item.provider]
+                ? item.provider
+                : "groq",
+            model: item.model || PROVIDERS[item.provider]?.model,
+            maskLength: 16,
+            active: false
+        }));
+
+        const activeEntry = apiEntries.find(
+            (entry) => entry.id === savedActiveId
+        );
+
+        if (activeEntry) {
+            activeEntry.active = true;
+        } else if (apiEntries.length > 0) {
+            apiEntries[0].active = true;
+        }
+
+        normalizeActiveApi();
+        renderApiEntries();
+        renderApiSwitcher();
+
+    } catch (error) {
+        console.error("Loading API keys failed:", error);
+        showPopup(
+            "Could Not Load APIs",
+            "Check your connection and try again.",
+            "error"
+        );
+    } finally {
+        isLoadingApis = false;
     }
-} catch (error) {
-    console.warn("Could not read API metadata.", error);
-    savedApiMetadata = [];
 }
-savedApiMetadata.forEach((entry) => {
-    const provider = PROVIDERS[entry.provider]
-        ? entry.provider
-        : entry.name.toLowerCase().includes("groq")
-          ? "groq"
-          : "huggingface";
-    apiEntries.push({
-        id: entry.id,
-        name: entry.name,
-        provider,
-        model: entry.model || PROVIDERS[provider].model,
-        maskLength: entry.maskLength || 16,
-        active: Boolean(entry.active)
-    });
-});
-normalizeActiveApi();
-renderApiEntries();
-renderApiSwitcher();
+
+loadApiEntries();
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader at 17 oct
 /* ========================================================= CREATE API ========================================================= */
 providerSelectButton?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -783,14 +939,21 @@ providerOptions.forEach((option) => {
 document.addEventListener("click", () => {
     providerSelectMenu?.classList.remove("open");
 });
-createApiButton.addEventListener("click", () => {
+createApiButton.addEventListener("click",async () => {
     const name = apiNameInput.value.trim();
     const key = apiKeyInput.value.trim();
     if (!name || !key) {
         showPopup("Missing API Details", "Enter both the API name and API key.", "warning");
         return;
     }
-    saveApi(name, key, selectedProvider);
+    // saveApi(name, key, selectedProvider);
+    //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
+    try {
+    await saveApi(name, key, selectedProvider);
+} catch {
+    return;
+}
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader oct 17
     apiNameInput.value = "";
     apiKeyInput.value = "";
     selectedProvider = "groq";
@@ -802,25 +965,108 @@ createApiButton.addEventListener("click", () => {
     });
     providerSelectMenu?.classList.remove("open");
 });
-/* ========================================================= SAVE API ========================================================= */
-function saveApi(name, key, providerKey = "groq") {
-    const id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
-    const maskLength = Math.floor(Math.random() * 9) + 12;
-    const active = apiEntries.length === 0;
-    const provider = PROVIDERS[providerKey] ? providerKey : "groq";
-    apiSecrets.set(id, key);
-    apiEntries.push({
-        id,
-        name,
-        provider,
-        model: PROVIDERS[provider].model,
-        maskLength,
-        active
-    });
-    saveApiMetadata();
-    renderApiEntries();
-    renderApiSwitcher();
+
+// ========================================================= SAVE API =========================================================
+// function saveApi(name, key, providerKey = "groq") {
+//     const id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
+//     const maskLength = Math.floor(Math.random() * 9) + 12;
+//     const active = apiEntries.length === 0;
+//     const provider = PROVIDERS[providerKey] ? providerKey : "groq";
+//     apiSecrets.set(id, key);
+//     apiEntries.push({
+//         id,
+//         name,
+//         provider,
+//         model: PROVIDERS[provider].model,
+//         maskLength,
+//         active
+//     });
+//     saveApiMetadata();
+//     renderApiEntries();
+//     renderApiSwitcher();
+// }
+
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
+/* ========================================================= SAVE API TO NEON ========================================================= */
+
+async function saveApi(name, key, providerKey = "groq") {
+    const provider = PROVIDERS[providerKey]
+        ? providerKey
+        : "groq";
+
+    try {
+        const response = await fetch("/api/keys", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({
+                provider,
+                label: name,
+                model: PROVIDERS[provider].model,
+                apiKey: key
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || "Could not save API key.");
+        }
+
+        // Use the database-generated ID, not a browser-generated ID.
+        const saved = data.key;
+
+        if (!saved || !saved.id) {
+            throw new Error("The server did not return the saved API.");
+        }
+
+        const entry = {
+            id: saved.id,
+            name: saved.label,
+            provider: saved.provider,
+            model: saved.model || PROVIDERS[provider].model,
+            maskLength: 16,
+            active: apiEntries.length === 0
+        };
+
+        apiEntries.push(entry);
+
+        // Do not persist the plaintext API key in browser storage.
+        apiSecrets.delete(entry.id);
+
+        if (entry.active) {
+            try {
+                localStorage.setItem("activeApiId", entry.id);
+            } catch (error) {
+                console.warn("Could not save active API selection.");
+            }
+        }
+
+        renderApiEntries();
+        renderApiSwitcher();
+
+        showPopup(
+            "API Saved",
+            "Your API key was encrypted and saved to the database.",
+            "success"
+        );
+
+    } catch (error) {
+        console.error("Saving API key failed:", error);
+
+        showPopup(
+            "Could Not Save API",
+            error.message || "Check your connection and try again.",
+            "error"
+        );
+
+        throw error;
+    }
 }
+//x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader  oct 17
 /* ========================================================= SAVE SAFE API METADATA ========================================================= */
 function saveApiMetadata() {
     const metadata = apiEntries.map((entry) => ({
