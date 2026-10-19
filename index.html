@@ -257,37 +257,97 @@
             </div>
         </section>
         <!-- ===================================================== API PAGE ====================================================== -->
-        <section id="apiPage" class="app-page">
-            <div class="page-header">
-                <h1>API Management</h1>
-                <button class="back-button" type="button">←</button>
-            </div>
-            <p class="page-description">Add and manage the providers used by your assistant.</p>
-            <div id="apiList" class="api-list"></div>
-            <!-- CREATE API -->
-            <div id="apiCreateCard" class="api-card api-create-card">
-                <div class="api-create-title">Create API</div>
-                <label> Name </label>
-                <input id="apiNameInput" type="text" placeholder="Enter API name" />
-                <label> Provider </label>
-                <div id="providerSelectWrapper" class="api-provider-select-wrapper">
-                    <button id="providerSelectButton" class="api-provider-select-button" type="button">
-                        <span id="providerSelectValue">Groq</span>
-                        <span class="api-provider-arrow">▼</span>
-                    </button>
-                    <div id="providerSelectMenu" class="api-provider-select-menu" role="listbox">
-                        <button class="provider-option selected" data-value="groq" type="button">Groq</button>
-                        <button class="provider-option" data-value="huggingface" type="button">Hugging Face</button>
-                        <button class="provider-option" data-value="openai" type="button">OpenAI</button>
-                    </div>
+   
+<section id="apiPage" class="app-page">
+    <div class="page-header">
+        <h1>API Management</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Add and manage the providers used by your assistant.
+    </p>
+
+    <div class="api-content">
+
+        <!-- Saved API cards appear here -->
+        <div id="apiList" class="api-list"></div>
+
+         <!-- Full-width Add New Key button -->
+        <div id="apiCreateCard" class="api-card api-create-card" hidden>
+            <div class="api-create-title">Create API</div>
+
+            <label for="apiNameInput">Name</label>
+            <input
+                id="apiNameInput"
+                type="text"
+                placeholder="Enter API name"
+            />
+
+            <label>Provider</label>
+            <div id="providerSelectWrapper" class="api-provider-select-wrapper">
+                <button
+                    id="providerSelectButton"
+                    class="api-provider-select-button"
+                    type="button"
+                >
+                    <span id="providerSelectValue">Groq</span>
+                    <span class="api-provider-arrow">▼</span>
+                </button>
+
+                <div
+                    id="providerSelectMenu"
+                    class="api-provider-select-menu"
+                    role="listbox"
+                >
+                    <button class="provider-option selected" data-value="groq" type="button">Groq</button>
+                    <button class="provider-option" data-value="huggingface" type="button">Hugging Face</button>
+                    <button class="provider-option" data-value="openai" type="button">OpenAI</button>
                 </div>
-                <label> API Key </label>
-                <input id="apiKeyInput" type="password" placeholder="Enter API key" autocomplete="off" />
-                <div class="create-api-row">
-                    <button id="createApiButton" class="api-create-button" type="button">Create</button>
-                </div>
             </div>
-        </section>
+
+            <label for="apiKeyInput">API Key</label>
+            <input
+                id="apiKeyInput"
+                type="password"
+                placeholder="Enter API key"
+                autocomplete="off"
+            />
+
+            <div class="create-api-row">
+                <button
+                    id="cancelCreateApiButton"
+                    class="api-cancel-button"
+                    type="button"
+                >
+                    Cancel
+                </button>
+                <button
+                    id="createApiButton"
+                    class="api-create-button"
+                    type="button"
+                >
+                    Create
+                </button>
+            </div>
+        </div>
+       
+        <button
+            id="addApiKeyButton"
+            class="add-api-key-button"
+            type="button"
+        >
+            <span class="add-api-key-plus">+</span>
+            <span>Add New Key</span>
+        </button>
+
+        <!-- Create API form, hidden initially -->
+
+        
+
+    </div>
+</section>
+
         <!-- ===================================================== DELETE MODAL ====================================================== -->
         <div id="deleteModal" class="delete-modal" aria-hidden="true">
             <div class="delete-modal-card">
