@@ -220,8 +220,60 @@ app.get("/api/keys", async (req, res) => {
 });
 
 /* ============================================
-   SECURE AI CHAT ROUTE GOES HERE
+   REVEAL ONE SAVED API KEY
    ============================================ */
+
+app.get("/api/keys/:id/reveal", async (req, res) => {
+    res.set("Cache-Control", "no-store");
+
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT key_ciphertext, key_iv, key_auth_tag
+             FROM user_api_keys
+             WHERE id = $1 AND user_id = $2`,
+            [
+                req.params.id,
+                String(req.user.id)
+            ]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: "Saved API key not found."
+            });
+        }
+
+        const row = result.rows[0];
+
+        const apiKey = decryptApiKey({
+            ciphertext: row.key_ciphertext,
+            iv: row.key_iv,
+            authTag: row.key_auth_tag
+        });
+
+        return res.json({ apiKey });
+
+    } catch (error) {
+        // Never log the API key or decrypted response.
+        if (error.code === "22P02") {
+            return res.status(400).json({
+                error: "Invalid API key record ID."
+            });
+        }
+
+        console.error("API key reveal failed:", error.message);
+
+        return res.status(500).json({
+            error: "Could not reveal the saved API key."
+        });
+    }
+});
 
 /* ============================================
    SECURE AI CHAT ROUTE

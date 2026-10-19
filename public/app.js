@@ -27,7 +27,13 @@ const providerSelectButton = document.getElementById("providerSelectButton");
 const providerSelectValue = document.getElementById("providerSelectValue");
 const providerSelectMenu = document.getElementById("providerSelectMenu");
 const providerOptions = document.querySelectorAll(".provider-option");
+// const createApiButton = document.getElementById("createApiButton");
+// let selectedProvider = "groq"; 
 const createApiButton = document.getElementById("createApiButton");
+const addApiKeyButton = document.getElementById("addApiKeyButton");
+const apiCreateCard = document.getElementById("apiCreateCard");
+const cancelCreateApiButton = document.getElementById("cancelCreateApiButton");
+
 let selectedProvider = "groq";
 /* ========================================================= DELETE MODAL ========================================================= */
 const deleteModal = document.getElementById("deleteModal");
@@ -398,7 +404,7 @@ async function sendMessage() {
         //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
         //  =========================================
         //    GET API KEY
-        // =========================================
+        // ========================================= 
         // const apiKey = apiSecrets.get(activeApi.id);
         // if (!apiKey) {
         //     showPopup(
@@ -410,7 +416,7 @@ async function sendMessage() {
         // }
         //  =========================================
         //    GET PROVIDER CONFIG
-        // =========================================
+        // ========================================= 
         // const providerConfig = getProviderConfig(activeApi.provider);
         // if (!providerConfig) {
         //     showPopup("Provider Error", `The configuration for "${activeApi.provider}" could not be found.`, "error");
@@ -426,7 +432,7 @@ async function sendMessage() {
         //     );
         //     return;
         // }
-        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader 17 oct
+        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader 17 oct 
         /* =========================================
            SHOW USER MESSAGE
         ========================================= */
@@ -460,7 +466,7 @@ async function sendMessage() {
 //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
         //  =========================================
         //    SEND REQUEST
-        // =========================================
+        // ========================================= 
         // const response = await fetch(endpoint, {
         //     method: "POST",
         //     headers: {
@@ -477,7 +483,7 @@ async function sendMessage() {
         //         ]
         //     })
         // });
-
+        
         /* =========================================
            SEND REQUEST TO OUR BACKEND
         ========================================= */
@@ -536,10 +542,10 @@ async function sendMessage() {
             return;
         }
 
-
+        
         // =========================================
         //    READ RESPONSE
-        // =========================================
+        // ========================================= 
         // let data = null;
         // try {
         //     data = await response.json();
@@ -563,7 +569,7 @@ async function sendMessage() {
 
         //  =========================================
         //    GET AI RESPONSE
-        // =========================================
+        // ========================================= 
         // const aiResponse = data?.choices?.[0]?.message?.content;
         // if (!aiResponse) {
         //     showPopup("Empty Response", "The API responded successfully, but no AI message was returned.", "warning");
@@ -792,16 +798,16 @@ if (customThemeInput) {
     });
 }
 
-//  ========================================================= LOAD CUSTOM WALLPAPER =========================================================
+//  ========================================================= LOAD CUSTOM WALLPAPER ========================================================= 
 // const savedCustomTheme = localStorage.getItem("customTheme");
 // if (savedCustomTheme && savedTheme === "custom") {
 //     chat.style.backgroundImage = `url("${savedCustomTheme}")`;
 // }
-//  ========================================================= API DATA =========================================================
+//  ========================================================= API DATA ========================================================= 
 // /* IMPORTANT: Raw API keys are NOT stored in localStorage. They are kept only in this in-memory Map until the backend is implemented. */
 // const apiSecrets = new Map();
 // let apiEntries = [];
-//  ========================================================= LOAD API METADATA =========================================================
+//  ========================================================= LOAD API METADATA ========================================================= 
 // let savedApiMetadata = [];
 // try {
 //     savedApiMetadata = JSON.parse(localStorage.getItem("apiMetadata") || "[]");
@@ -829,7 +835,7 @@ if (customThemeInput) {
 // });
 // normalizeActiveApi();
 // renderApiEntries();
-// renderApiSwitcher();
+// renderApiSwitcher(); 
 
 //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
 /* ========================================================= API DATA ========================================================= */
@@ -921,6 +927,51 @@ async function loadApiEntries() {
 loadApiEntries();
 //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader at 17 oct
 /* ========================================================= CREATE API ========================================================= */
+/* =========================================================
+   ADD NEW API KEY FORM
+========================================================= */
+
+function openApiCreateForm() {
+    if (!apiCreateCard || !addApiKeyButton) return;
+
+    apiCreateCard.hidden = false;
+    addApiKeyButton.hidden = true;
+
+    apiNameInput?.focus();
+}
+
+function closeApiCreateForm() {
+    if (!apiCreateCard || !addApiKeyButton) return;
+
+    apiCreateCard.hidden = true;
+    addApiKeyButton.hidden = false;
+
+    apiNameInput.value = "";
+    apiKeyInput.value = "";
+
+    selectedProvider = "groq";
+
+    if (providerSelectValue) {
+        providerSelectValue.textContent = "Groq";
+    }
+
+    providerOptions.forEach((option) => {
+        option.classList.toggle(
+            "selected",
+            option.dataset.value === "groq"
+        );
+    });
+
+    providerSelectMenu?.classList.remove("open");
+}
+
+addApiKeyButton?.addEventListener("click", openApiCreateForm);
+
+cancelCreateApiButton?.addEventListener(
+    "click",
+    closeApiCreateForm
+);
+
 providerSelectButton?.addEventListener("click", (event) => {
     event.stopPropagation();
     providerSelectMenu?.classList.toggle("open");
@@ -963,10 +1014,11 @@ createApiButton.addEventListener("click",async () => {
     providerOptions.forEach((option) => {
         option.classList.toggle("selected", option.dataset.value === "groq");
     });
-    providerSelectMenu?.classList.remove("open");
+        closeApiCreateForm();
 });
 
-// ========================================================= SAVE API =========================================================
+
+// ========================================================= SAVE API ========================================================= 
 // function saveApi(name, key, providerKey = "groq") {
 //     const id = Date.now().toString() + Math.random().toString(36).slice(2, 7);
 //     const maskLength = Math.floor(Math.random() * 9) + 12;
@@ -1142,9 +1194,32 @@ function renderApiEntry(entry) {
             <div class="api-field-label">
                 API Key
             </div>
-            <div class="api-value-box api-key-mask">
-                ${mask}
-            </div>
+           <div class="api-value-box api-key-container">
+    <span class="api-key-mask">${mask}</span>
+<button
+    class="api-key-toggle"
+    type="button"
+    aria-label="Show API key"
+    title="Show API key"
+>
+    <svg
+        class="eye-icon"
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+    >
+        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>
+</button>
+</div>
         </div>
         <div class="api-status-row">
             <div class="
@@ -1181,6 +1256,91 @@ function renderApiEntry(entry) {
             </div>
         </div>
     `;
+
+    /* SHOW / HIDE API KEY */
+    const keyToggleButton = card.querySelector(".api-key-toggle");
+    const keyMask = card.querySelector(".api-key-mask");
+
+    keyToggleButton.addEventListener("click", async () => {
+        const isVisible = keyToggleButton.dataset.visible === "true";
+
+        // Hide the key without making another server request.
+        if (isVisible) {
+            keyMask.textContent = mask;
+            keyToggleButton.dataset.visible = "false";
+            keyToggleButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+        width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/>
+        <circle cx="12" cy="12" r="3"/>
+    </svg>
+`;
+            keyToggleButton.setAttribute("aria-label", "Show API key");
+            keyToggleButton.title = "Show API key";
+            return;
+        }
+
+        keyToggleButton.disabled = true;
+
+        try {
+            const response = await fetch(
+                `/api/keys/${encodeURIComponent(entry.id)}/reveal`,
+                {
+                    method: "GET",
+                    credentials: "same-origin",
+                    headers: {
+                        Accept: "application/json"
+                    },
+                    cache: "no-store"
+                }
+            );
+
+            const data = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+                throw new Error(
+                    data.error || "Could not reveal the API key."
+                );
+            }
+
+            if (typeof data.apiKey !== "string" || !data.apiKey) {
+                throw new Error("The server returned no API key.");
+            }
+
+            keyMask.textContent = data.apiKey;
+            keyToggleButton.dataset.visible = "true";
+            keyToggleButton.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+        width="18" height="18" viewBox="0 0 24 24"
+        fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true">
+        <path d="m3 3 18 18"/>
+        <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/>
+        <path d="M9.9 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a15.5 15.5 0 0 1-4 4.7"/>
+        <path d="M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7c1.4 0 2.7-.3 3.8-.8"/>
+    </svg>
+`;
+            keyToggleButton.setAttribute("aria-label", "Hide API key");
+            keyToggleButton.title = "Hide API key";
+
+        } catch (error) {
+            console.error("API key reveal failed:", error.message);
+
+            showPopup(
+                "Could Not Reveal API Key",
+                error.message || "Please try again.",
+                "error"
+            );
+        } finally {
+            keyToggleButton.disabled = false;
+        }
+    });
+
+ 
     apiList.appendChild(card);
     /* SWITCH */
     const switchButton = card.querySelector(".api-switch");
@@ -1221,27 +1381,86 @@ function deleteApi(id) {
     deleteModal.setAttribute("aria-hidden", "false");
 }
 /* ========================================================= CONFIRM DELETE ========================================================= */
-confirmDeleteButton.addEventListener("click", () => {
+
+confirmDeleteButton.addEventListener("click", async () => {
     if (!apiToDelete) {
         return;
     }
+
     const id = apiToDelete;
-    const deletedApi = apiEntries.find((entry) => entry.id === id);
+    const deletedApi = apiEntries.find(
+        (entry) => String(entry.id) === String(id)
+    );
     const wasActive = deletedApi?.active;
-    apiSecrets.delete(id);
-    apiEntries = apiEntries.filter((entry) => entry.id !== id);
-    /* If the active API was deleted, make the first remaining API active. */
-    if (wasActive && apiEntries.length > 0) {
-        apiEntries.forEach((entry) => {
-            entry.active = false;
-        });
-        apiEntries[0].active = true;
+
+    confirmDeleteButton.disabled = true;
+
+    try {
+        const response = await fetch(
+            `/api/keys/${encodeURIComponent(id)}`,
+            {
+                method: "DELETE",
+                credentials: "same-origin",
+                headers: {
+                    Accept: "application/json"
+                }
+            }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(data.error || "Failed to delete API key.");
+        }
+
+        // Update the frontend only after backend deletion succeeds.
+        apiSecrets.delete(id);
+        apiEntries = apiEntries.filter(
+            (entry) => String(entry.id) !== String(id)
+        );
+
+        // Select another API if the active one was deleted.
+        if (wasActive && apiEntries.length > 0) {
+            apiEntries.forEach((entry) => {
+                entry.active = false;
+            });
+
+            apiEntries[0].active = true;
+
+            try {
+                localStorage.setItem(
+                    "activeApiId",
+                    String(apiEntries[0].id)
+                );
+            } catch (error) {
+                console.warn("Could not save active API selection.", error);
+            }
+        } else if (wasActive) {
+            try {
+                localStorage.removeItem("activeApiId");
+            } catch (error) {
+                console.warn("Could not clear active API selection.", error);
+            }
+        }
+
+        saveApiMetadata();
+        renderApiEntries();
+        renderApiSwitcher();
+        closeDeleteModal();
+
+    } catch (error) {
+        console.error("API deletion failed:", error);
+
+        showPopup(
+            "Delete failed",
+            error.message || "Could not delete the API key. Please try again.",
+            "error"
+        );
+    } finally {
+        confirmDeleteButton.disabled = false;
     }
-    saveApiMetadata();
-    renderApiEntries();
-    renderApiSwitcher();
-    closeDeleteModal();
 });
+
 /* ========================================================= CLOSE DELETE MODAL ========================================================= */
 cancelDeleteButton.addEventListener("click", closeDeleteModal);
 deleteModal.addEventListener("click", (event) => {
