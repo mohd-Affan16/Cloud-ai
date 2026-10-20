@@ -285,13 +285,23 @@ menuItems.forEach((item) => {
         openPage(pageId);
     });
 });
-settingsNavigationItems.forEach((item) => {
-    item.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const pageId = item.dataset.page;
-        openPage(pageId);
-    });
+
+/* SETTINGS PAGE NAVIGATION */
+document.addEventListener("click", (event) => {
+    const item = event.target.closest(".settings-navigation-item");
+
+    if (!item) return;
+
+    const pageId = item.dataset.page;
+
+    if (!pageId) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    openPage(pageId);
 });
+
 function openPage(pageId) {
     sideMenu.classList.remove("open");
     apiSwitcherMenu.classList.remove("open");
@@ -339,9 +349,18 @@ async function saveMessageToServer(conversationId, role, content) {
             );
 
             console.log("Message saved locally:", localRole);
+        
         } catch (error) {
             console.error("Local file save failed:", error);
+
+            showPopup(
+                "Local Archive Save Failed",
+                "This message may not be saved in your selected folder. Check the folder permissions and storage location.",
+                "error",
+                7000
+            );
         }
+
     }
 
     // 2. Save the message to the existing server storage
@@ -1204,6 +1223,751 @@ async function testLocalStorage() {
         alert("Storage test failed: " + error.message);
     }
 }
+
 document
     .getElementById("testStorageButton")
-    .addEventListener("click", testLocalStorage);
+    ?.addEventListener("click", testLocalStorage);
+
+
+/* LOCAL CONVERSATION STORAGE — Choose Folder & Backup */
+
+const chooseStorageFolderButton =
+    document.getElementById("chooseStorageFolderButton");
+
+const checkAndBackupButton =
+    document.getElementById("checkAndBackupButton");
+
+const storageFolderStatus =
+    document.getElementById("storageFolderStatus");
+
+const storageBackupStatus =
+    document.getElementById("storageBackupStatus");
+
+
+/* ACTION 1: Select a folder only. Do not check or back up here. */
+chooseStorageFolderButton?.addEventListener("click", async () => {
+    try {
+        const folderName =
+            await LocalConversationStorage.chooseFolder();
+
+        if (storageFolderStatus) {
+            storageFolderStatus.textContent =
+                `Selected folder: ${folderName}`;
+        }
+
+        if (storageBackupStatus) {
+            storageBackupStatus.textContent =
+                "Backup status has not been checked yet.";
+        }
+
+    } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("Folder selection failed:", error);
+
+        showPopup(
+            "Folder selection failed",
+            error.message || "Could not select the storage folder.",
+            "error"
+        );
+    }
+});
+
+
+/* ACTION 2: Check the folder, then back up missing conversations. */
+checkAndBackupButton?.addEventListener("click", async () => {
+    try {
+        if (!LocalConversationStorage.isFolderSelected()) {
+            showPopup(
+                "Choose a folder first",
+                "Select your storage folder before backing up conversations.",
+                "warning"
+            );
+            return;
+        }
+
+        if (storageBackupStatus) {
+            storageBackupStatus.textContent =
+                "Checking backup status...";
+        }
+
+        const report =
+            await LocalConversationStorage.verifyArchive(threads);
+
+        // Stop if the archive has conflicts or invalid data.
+        if (
+            report.conflicts.length > 0 ||
+            report.invalidFiles.length > 0 ||
+            report.extraMessages.length > 0
+        ) {
+            if (storageBackupStatus) {
+                storageBackupStatus.textContent =
+                    "Backup needs attention. Existing files were left unchanged.";
+            }
+
+            showPopup(
+                "Backup needs attention",
+                "Some saved conversations differ. No backup was started.",
+                "warning"
+            );
+            console.warn("Archive needs attention:", report);
+            return;
+        }
+
+        const missingIds =
+            new Set(report.missingArchiveFiles || []);
+
+        if (missingIds.size === 0) {
+            if (storageBackupStatus) {
+                storageBackupStatus.textContent =
+                    "All current conversations are backed up.";
+            }
+
+            showPopup(
+                "Backup up to date",
+                "All current conversations are present in your selected folder.",
+                "success"
+            );
+            return;
+        }
+
+        // Tell the user the archive is incomplete before copying.
+        if (storageBackupStatus) {
+            storageBackupStatus.textContent =
+                `${missingIds.size} conversation(s) are not backed up yet.`;
+        }
+
+        showPopup(
+            "Conversations not backed up",
+            `${missingIds.size} conversation(s) are missing. Backing them up now.`,
+            "warning"
+        );
+
+        let backedUp = 0;
+
+        for (const thread of threads) {
+            if (!missingIds.has(thread.id)) continue;
+
+            // This helper must refuse to overwrite an existing folder.
+           try {
+    await LocalConversationStorage.recoverMissingConversation(
+        thread
+    );
+
+    backedUp++;
+} catch (error) {
+    console.error(
+        "Backup failed for conversation:",
+        thread.id,
+        error.name,
+        error.message,
+        error.stack
+    );
+
+    showPopup(
+        "Backup failed",
+        `Could not back up conversation ${thread.id}. Check the browser console for details.`,
+        "error"
+    );
+
+    return;
+}
+        }
+
+        // Check again after the backup.
+        const finalReport =
+            await LocalConversationStorage.verifyArchive(threads);
+
+        if (
+            finalReport.missingArchiveFiles.length === 0 &&
+            finalReport.conflicts.length === 0 &&
+            finalReport.invalidFiles.length === 0
+        ) {
+            if (storageBackupStatus) {
+                storageBackupStatus.textContent =
+                    "All current conversations are backed up.";
+            }
+
+            showPopup(
+                "Backup complete",
+                `${backedUp} missing conversation(s) backed up successfully.`,
+                "success"
+            );
+        } else {
+            if (storageBackupStatus) {
+                storageBackupStatus.textContent =
+                    "Some conversations still need backup or review.";
+            }
+
+            showPopup(
+                "Backup needs review",
+                "The backup finished, but some conversations still need attention.",
+                "warning"
+            );
+        }
+
+    } catch (error) {
+        console.error("Conversation backup failed:", error);
+
+        if (storageBackupStatus) {
+            storageBackupStatus.textContent =
+                "Backup failed. Please check the folder and try again.";
+        }
+
+        showPopup(
+            "Backup failed",
+            error.message || "Could not back up conversations.",
+            "error"
+        );
+    }
+});
+
+/* LOCAL STORAGE SETTINGS — NAVIGATION ONLY
+   Folder selection happens only through Choose Storage Folder. */
+const localStorageSettingsButton =
+    document.getElementById("localStorageSettingsButton");
+
+// Do not open the folder picker from this navigation button.
+// The existing settings-navigation handler opens localStoragePage.
+
+/* TEMPORARY TEST — Full conversation export */
+async function testConversationExport() {
+    try {
+        const folderName =
+            await LocalConversationStorage.chooseFolder();
+
+        const testThread = {
+            id: "thread_export_test",
+            title: "Export Test",
+            messages: [
+                {
+                    role: "user",
+                    content: "Test message from user"
+                },
+                {
+                    role: "ai",
+                    content: "Test response from assistant"
+                }
+            ]
+        };
+
+        const result =
+            await LocalConversationStorage.saveConversation(testThread);
+
+        console.log("Conversation export result:", result);
+
+        showPopup(
+            "Export test passed",
+            `Saved ${result.messageCount} test messages to ${folderName}.`,
+            "success"
+        );
+    } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("Conversation export test failed:", error);
+
+        showPopup(
+            "Export test failed",
+            error.message || "Could not export test conversation.",
+            "error"
+        );
+    }
+}
+document
+    .getElementById("testConversationExportButton")
+    ?.addEventListener("click", testConversationExport);
+    
+/* TEMPORARY TEST — Safe conversation migration */
+async function testSafeMigration() {
+    try {
+        const folderName =
+            await LocalConversationStorage.chooseFolder();
+
+        const testThread = {
+            id: "thread_migration_test",
+            title: "Migration Test",
+            messages: [
+                { role: "user", content: "Migration test message 1" },
+                { role: "ai", content: "Migration test message 2" }
+            ]
+        };
+
+        // First run: create the archive.
+        const firstResult =
+            await LocalConversationStorage.migrateConversation(testThread);
+
+        // Second run: ensure it does not duplicate messages.
+        const secondResult =
+            await LocalConversationStorage.migrateConversation(testThread);
+
+        console.log("First migration:", firstResult);
+        console.log("Second migration:", secondResult);
+
+        if (
+            firstResult.messageCount !== 2 ||
+            secondResult.messageCount !== 2 ||
+            secondResult.status !== "already-current"
+        ) {
+            throw new Error(
+                "Migration verification failed. Check the console and test file."
+            );
+        }
+
+        showPopup(
+            "Migration test passed",
+            `Test archive verified in ${folderName}. Two messages, no duplicates.`,
+            "success"
+        );
+    } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("Safe migration test failed:", error);
+
+        showPopup(
+            "Migration test failed",
+            error.message || "Could not verify safe migration.",
+            "error"
+        );
+    }
+}
+
+document
+    .getElementById("testSafeMigrationButton")
+    ?.addEventListener("click", testSafeMigration);
+
+/* STORAGE MIGRATION — Button handler */
+
+const migrateStorageButton =
+    document.getElementById("migrateStorageButton");
+
+migrateStorageButton?.addEventListener("click", async () => {
+    try {
+        if (!LocalConversationStorage.isFolderSelected()) {
+            showPopup(
+                "Choose a folder first",
+                "Select your current storage folder before migrating.",
+                "warning"
+            );
+            return;
+        }
+
+        showPopup(
+            "Migration started",
+            "Choose a destination folder for your archive.",
+            "info"
+        );
+
+        const result =
+            await LocalConversationStorage.migrateStorageFolder();
+
+        showPopup(
+            "Migration complete",
+            `Copied and verified ${result.copiedFiles} file(s) from "${result.sourceName}" to "${result.destinationName}". Your original archive is still safe.`,
+            "success",
+            7000
+        );
+
+    } catch (error) {
+        if (error.name === "AbortError") {
+            showPopup(
+                "Migration cancelled",
+                "Your original archive has not been changed.",
+                "info"
+            );
+            return;
+        }
+
+        console.error("Storage migration failed:", error);
+
+        showPopup(
+            "Migration failed",
+            error.message || "Could not migrate the storage folder.",
+            "error",
+            7000
+        );
+    }
+});
+
+/* TEMPORARY TEST — Migration conflict protection */
+async function testMigrationConflict() {
+    try {
+        const folderName =
+            await LocalConversationStorage.chooseFolder();
+
+        const conversationId = "thread_migration_conflict_test";
+
+        // Create a known baseline in a dedicated test folder.
+        const baseline = {
+            id: conversationId,
+            title: "Conflict Test",
+            messages: [
+                {
+                    role: "user",
+                    content: "Original archive message"
+                }
+            ]
+        };
+
+        await LocalConversationStorage.saveConversation(baseline);
+
+        // Simulate browser history that conflicts with the archive.
+        const conflictingThread = {
+            id: conversationId,
+            title: "Conflict Test",
+            messages: [
+                {
+                    role: "user",
+                    content: "Different browser history message"
+                }
+            ]
+        };
+
+        try {
+            await LocalConversationStorage.migrateConversation(
+                conflictingThread
+            );
+
+            throw new Error(
+                "SAFETY FAILURE: conflicting history was not rejected."
+            );
+        } catch (error) {
+            if (
+                error.message.startsWith("SAFETY FAILURE:")
+            ) {
+                throw error;
+            }
+
+            if (!error.message.includes("History conflict")) {
+                throw error;
+            }
+
+            console.log(
+                "Expected conflict detected:",
+                error.message
+            );
+
+            showPopup(
+                "Conflict detected",
+                `Migration stopped safely. Check the test archive in ${folderName}.`,
+                "success"
+            );
+        }
+    } catch (error) {
+        if (error.name === "AbortError") return;
+
+        console.error("Conflict test failed:", error);
+
+        showPopup(
+            "Conflict test failed",
+            error.message || "Could not verify conflict protection.",
+            "error"
+        );
+    }
+}
+
+document
+    .getElementById("testMigrationConflictButton")
+    ?.addEventListener("click", testMigrationConflict);
+
+/* TEMPORARY TEST — Migration preview only */
+function previewConversationMigration() {
+    try {
+        // Read the existing in-memory copy of browser history.
+        const sourceThreads = threads;
+
+        if (!Array.isArray(sourceThreads)) {
+            throw new Error("Browser conversation history is invalid.");
+        }
+
+        let totalMessages = 0;
+        let emptyConversations = 0;
+
+        for (const thread of sourceThreads) {
+            if (
+                !thread ||
+                typeof thread.id !== "string" ||
+                !Array.isArray(thread.messages)
+            ) {
+                throw new Error(
+                    "Invalid conversation found. Preview stopped."
+                );
+            }
+
+            totalMessages += thread.messages.length;
+
+            if (thread.messages.length === 0) {
+                emptyConversations++;
+            }
+        }
+
+        const preview = {
+            conversations: sourceThreads.length,
+            messages: totalMessages,
+            emptyConversations,
+            writesPerformed: 0
+        };
+
+        console.table([preview]);
+        console.log("Migration preview:", preview);
+
+        showPopup(
+            "Migration preview ready",
+            `${preview.conversations} conversations, ` +
+            `${preview.messages} messages. No files were changed.`,
+            "success"
+        );
+    } catch (error) {
+        console.error("Migration preview failed:", error);
+
+        showPopup(
+            "Preview failed",
+            error.message || "Could not inspect browser history.",
+            "error"
+        );
+    }
+}
+
+document
+    .getElementById("previewConversationMigrationButton")
+    ?.addEventListener("click", previewConversationMigration);
+
+/* LOCAL CONVERSATION STORAGE — Preview button */
+const previewMigrationButton =
+    document.getElementById("previewMigrationButton");
+
+const migrationConversationCount =
+    document.getElementById("migrationConversationCount");
+
+const migrationMessageCount =
+    document.getElementById("migrationMessageCount");
+
+const migrationStatus =
+    document.getElementById("migrationStatus");
+
+previewMigrationButton?.addEventListener("click", () => {
+    try {
+        const sourceThreads = threads;
+
+        if (!Array.isArray(sourceThreads)) {
+            throw new Error("Browser conversation history is invalid.");
+        }
+
+        let totalMessages = 0;
+
+        for (const thread of sourceThreads) {
+            if (!thread || !Array.isArray(thread.messages)) {
+                throw new Error("Invalid conversation found. Preview stopped.");
+            }
+
+            totalMessages += thread.messages.length;
+        }
+
+        migrationConversationCount.textContent = sourceThreads.length;
+        migrationMessageCount.textContent = totalMessages;
+        migrationStatus.textContent =
+            "Preview complete. No files have been changed.";
+
+        console.log("Conversation migration preview:", {
+            conversations: sourceThreads.length,
+            messages: totalMessages,
+            writesPerformed: 0
+        });
+    } catch (error) {
+        console.error("Migration preview failed:", error);
+
+        migrationStatus.textContent = error.message;
+
+        showPopup(
+            "Preview Failed",
+            error.message || "Could not preview conversation history.",
+            "error"
+        );
+    }
+});
+
+/* READ-ONLY — Verify existing local archive */
+const verifyArchiveButton =
+    document.getElementById("verifyArchiveButton");
+
+/* READ-ONLY — Preview conversations available for import */
+async function previewArchiveImport() {
+    try {
+        const browserThreads = JSON.parse(
+            localStorage.getItem("cloud_ai_threads") || "[]"
+        );
+
+        if (!Array.isArray(browserThreads)) {
+            throw new Error("Browser conversation history is invalid.");
+        }
+
+        const archivedThreads =
+            await LocalConversationStorage.readArchive();
+
+        // Exclude the two known test conversations.
+        const testIds = new Set([
+            "thread_export_test",
+            "thread_test123"
+        ]);
+
+        const browserById = new Map(
+            browserThreads.map(thread => [thread.id, thread])
+        );
+
+        const preview = archivedThreads
+            .filter(thread => !testIds.has(thread.id))
+            .map(archive => {
+                const existing = browserById.get(archive.id);
+
+                if (!existing) {
+                    return {
+                        id: archive.id,
+                        status: "Archive only — review before import",
+                        browserMessages: 0,
+                        archiveMessages: archive.messages.length
+                    };
+                }
+
+                const browserMessages = existing.messages || [];
+                const archiveMessages = archive.messages;
+
+                const exactMatch =
+                    browserMessages.length === archiveMessages.length &&
+                    browserMessages.every((message, index) => {
+                        const archived = archiveMessages[index];
+
+                        const role =
+                            message.role === "assistant" ||
+                            message.role === "ai"
+                                ? "ai"
+                                : message.role;
+
+                        return (
+                            role === archived.role &&
+                            message.content === archived.content
+                        );
+                    });
+
+                return {
+                    id: archive.id,
+                    status: exactMatch
+                        ? "Already present — exact match"
+                        : "Conflict — review required",
+                    browserMessages: browserMessages.length,
+                    archiveMessages: archiveMessages.length
+                };
+            });
+
+        console.table(preview);
+
+        const summary = {
+            browserConversations: browserThreads.length,
+            archivedConversations: archivedThreads.length,
+            testFoldersExcluded: testIds.size,
+            exactMatches: preview.filter(
+                item => item.status === "Already present — exact match"
+            ).length,
+            archiveOnly: preview.filter(
+                item => item.status.startsWith("Archive only")
+            ).length,
+            conflicts: preview.filter(
+                item => item.status.startsWith("Conflict")
+            ).length,
+            writesPerformed: 0
+        };
+
+        
+console.log("Archive import preview:", summary);
+
+// Update the existing archive status area.
+if (archiveVerificationStatus) {
+    archiveVerificationStatus.textContent =
+        `Import preview: ${summary.exactMatches} exact matches, ` +
+        `${summary.archiveOnly} archive-only conversations, ` +
+        `${summary.conflicts} conflicts. No data was changed.`;
+}
+
+// Display the preview details in the existing results area.
+if (archiveVerificationResults) {
+    archiveVerificationResults.textContent = JSON.stringify(
+        { summary, conversations: preview },
+        null,
+        2
+    );
+
+    archiveVerificationResults.hidden = false;
+}
+
+showPopup(
+    "Import preview complete",
+    `${summary.exactMatches} exact matches, ` +
+    `${summary.archiveOnly} archive-only conversations, ` +
+    `${summary.conflicts} conflicts. No data was changed.`,
+    summary.conflicts ? "warning" : "success",
+    7000
+);
+
+return { preview, summary };
+
+    } catch (error) {
+        console.error("Archive import preview failed:", error);
+
+        showPopup(
+            "Import preview failed",
+            error.message || "Could not preview the archive.",
+            "error"
+        );
+    }
+}
+const archiveVerificationStatus =
+    document.getElementById("archiveVerificationStatus");
+
+const archiveVerificationResults =
+    document.getElementById("archiveVerificationResults");
+
+verifyArchiveButton?.addEventListener("click", async () => {
+    verifyArchiveButton.disabled = true;
+    archiveVerificationStatus.textContent =
+        "Checking existing archive. No files will be changed.";
+
+    try {
+        const report =
+            await LocalConversationStorage.verifyArchive(threads);
+console.log("[Archive Verification Report]", report);
+        archiveVerificationResults.textContent =
+            JSON.stringify(report, null, 2);
+
+        archiveVerificationResults.hidden = false;
+
+        const hasProblems =
+            report.conflicts.length > 0 ||
+            report.invalidFiles.length > 0 ||
+            report.missingArchiveFiles.length > 0 ||
+            report.missingBrowserConversations.length > 0 ||
+            report.extraMessages.length > 0;
+
+        
+        const recoveredCount = report.matching.length;
+        const extraArchiveCount = report.missingBrowserConversations.length;
+
+        archiveVerificationStatus.textContent = hasProblems
+            ? `Archive check: ${recoveredCount} browser conversations match. ` +
+              `${extraArchiveCount} archive-only conversations found. ` +
+              `Review differences before migration.`
+            : `Verification complete: ${recoveredCount} conversations match. No files were changed.`;
+
+        console.log("Read-only archive verification:", report);
+    } catch (error) {
+        console.error("Archive verification failed:", error);
+
+        archiveVerificationStatus.textContent =
+            error.message || "Archive verification failed.";
+
+        showPopup(
+            "Archive Verification Failed",
+            error.message || "Could not verify the archive.",
+            "error"
+        );
+    } finally {
+        verifyArchiveButton.disabled = false;
+    }
+});

@@ -1766,3 +1766,111 @@ body {
         font-size: 18px;
     }
 }
+
+/* LOCAL CONVERSATION STORAGE — match Settings glass-card styling */
+
+.local-storage-card {
+    width: min(1000px, 100%);
+    margin: 0 auto;
+    padding: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.06);
+    color: inherit;
+    backdrop-filter: blur(22px) saturate(115%);
+    -webkit-backdrop-filter: blur(22px) saturate(115%);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.local-storage-card h2 {
+    margin: 0 0 12px;
+    font-size: 20px;
+}
+
+.local-storage-card h2:not(:first-child) {
+    margin-top: 25px;
+}
+
+.local-storage-card p {
+    color: rgba(255, 255, 255, 0.72);
+    line-height: 1.5;
+}
+
+.local-storage-card .storage-action-button {
+    min-height: 44px;
+    padding: 12px 16px;
+    margin-top: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.local-storage-card .storage-action-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.11);
+    border-color: rgba(255, 255, 255, 0.22);
+    transform: translateY(-1px);
+}
+
+.local-storage-card .storage-action-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.local-storage-card .storage-divider {
+    height: 1px;
+    margin: 24px 0;
+    background: rgba(255, 255, 255, 0.12);
+}
+
+.local-storage-card .storage-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 18px;
+}
+
+.local-storage-card .storage-stat {
+    flex: 1;
+    min-width: 150px;
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.local-storage-card .storage-stat strong,
+.local-storage-card .storage-stat span {
+    display: block;
+}
+
+.local-storage-card .storage-stat strong {
+    margin-bottom: 5px;
+    font-size: 24px;
+}
+
+.local-storage-card .storage-stat span {
+    color: rgba(255, 255, 255, 0.62);
+    font-size: 12px;
+}
+
+.local-storage-card .storage-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+    .local-storage-card {
+        padding: 18px;
+    }
+
+    .local-storage-card .storage-actions {
+        flex-direction: column;
+    }
+}
