@@ -25,9 +25,9 @@
                 <div class="threads-header">Recent Chats</div>
                 <div id="threadsList" class="threads-list"></div>
             </div>
-            <button id="testStorageButton">
+            <!-- <button id="testStorageButton">
     Test Conversation Storage
-</button>
+</button> -->
             <!-- SETTINGS -->
             <!-- <button
             class="menu-item"
@@ -221,12 +221,159 @@
                     </button>
                    
                 </div>
-                
-<!-- LOCAL CONVERSATION STORAGE -->
+</section>
+<!-- LOCAL CONVERSATION STORAGE PAGE -->
 
+<section id="localStoragePage" class="app-page">
+    <div class="page-header">
+        <h1>Local Conversation Storage</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Keep your conversation history in a folder you control.
+    </p>
+
+    <div class="glass-card local-storage-card">
+        <h2>Storage Location</h2>
+
+        <p id="storageFolderStatus" class="storage-status">
+            No folder selected
+        </p>
+
+        <button
+            id="chooseStorageFolderButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Choose Storage Folder
+        </button>
+
+        <div class="storage-divider"></div>
+
+        <h2>Conversation Backup</h2>
+
+        <p class="storage-description">
+            Check your folder for missing conversations and back them up
+            without deleting your existing history.
+        </p>
+
+        <button
+            id="checkAndBackupButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Check &amp; Back Up Conversations
+        </button>
+        
+<div class="storage-divider"></div>
+
+<h2>Migration</h2>
+
+<p class="storage-description">
+    Move your conversation archive to a different folder.
+    Your current archive will be kept until the move is verified.
+</p>
+
+<button
+    id="migrateStorageButton"
+    class="storage-action-button"
+    type="button"
+>
+    Migrate Storage Folder
+</button>
+
+        <p id="storageBackupStatus" class="storage-description">
+            Choose a folder to get started.
+        </p>
+    </div>
+</section>
+
+    <div class="page-header">
+        <h1>Local Conversation Storage</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Keep your conversation history in a folder you control.
+    </p>
+
+    <div class="glass-card local-storage-card">
+        <h2>Storage Location</h2>
+
+        <p id="storageFolderStatus" class="storage-status">
+            No folder selected
+        </p>
+
+        <button
+            id="chooseStorageFolderButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Choose Storage Folder
+        </button>
+
+        <div class="storage-divider"></div>
+
+        <h2>Existing Conversations</h2>
+
+        <p class="storage-description">
+            Preview your browser history before copying it to your folder.
+            Your original browser history will remain unchanged.
+        </p>
+
+        <div class="storage-summary">
+            <div class="storage-stat">
+                <strong id="migrationConversationCount">—</strong>
+                <span>Conversations</span>
+            </div>
+
+            <div class="storage-stat">
+                <strong id="migrationMessageCount">—</strong>
+                <span>Messages</span>
+            </div>
+        </div>
+
+        <p id="migrationStatus" class="storage-description">
+            Preview not generated yet.
+        </p>
+
+        <div class="storage-actions">
+            <button
+                id="previewMigrationButton"
+                class="storage-action-button"
+                type="button"
+            >
+                Preview Migration
+            </button>
+
+            <button
+                id="migrateConversationsButton"
+                class="storage-action-button"
+                type="button"
+                disabled
+            >
+                Migrate Existing Conversations
+            </button>
+        </div>
+        
+<button
+    id="verifyArchiveButton"
+    class="storage-action-button"
+    type="button"
+>
+    Verify Existing Archive
+</button>
+<p id="archiveVerificationStatus">
+    Existing archive has not been verified yet.
+</p>
+<pre id="archiveVerificationResults" hidden></pre>
+
+    </div>
     
 
             </div>
+            
         </section>
         <!-- ===================================================== THEMES PAGE ====================================================== -->
         <section id="themesPage" class="app-page">
