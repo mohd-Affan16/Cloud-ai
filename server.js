@@ -530,9 +530,7 @@ app.get("/login", (req, res) => {
 // HOME PAGE
 // ============================================
 app.get("/", (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.redirect("/login");
-    }
+  
     res.sendFile(path.join(__dirname, "index.html"));
 });
 // ============================================
@@ -582,7 +580,7 @@ app.get("/auth/logout", (req, res) => {
             });
         }
         req.session.destroy(() => {
-            res.redirect("/login");
+            res.redirect("/");
         });
     });
 });

@@ -139,9 +139,52 @@ sideMenu.addEventListener("click", (event) => {
     event.stopPropagation();
 });
 //new code 8-10-26
-logoutButton.addEventListener("click", () => {
-    window.location.href = "/auth/logout";
+
+// logoutButton.addEventListener("click", () => {
+//     window.location.href = "/auth/logout";
+// });
+// on 20-10-26
+
+const authButtonLabel = document.getElementById("authButtonLabel");
+
+let isUserAuthenticated = false;
+
+async function updateAuthButton() {
+    try {
+        const response = await fetch("/auth/me", {
+            credentials: "same-origin"
+        });
+
+        const auth = await response.json();
+
+        isUserAuthenticated =
+            response.ok && auth.authenticated === true;
+
+        authButtonLabel.textContent = isUserAuthenticated
+            ? "Log out"
+            : "Login / Sign up";
+    } catch (error) {
+        console.error("Could not check login status:", error);
+
+        isUserAuthenticated = false;
+        authButtonLabel.textContent = "Login / Sign up";
+    }
+}
+
+// Set the correct label when the page loads.
+updateAuthButton();
+
+// Choose the correct action when clicked.
+logoutButton.addEventListener("click", async () => {
+    await updateAuthButton();
+
+    if (isUserAuthenticated) {
+        window.location.href = "/auth/logout";
+    } else {
+        window.location.href = "/login";
+    }
 });
+
 //=====
 /* =========================================================
    THREAD / CHAT HISTORY ENGINE
@@ -260,10 +303,38 @@ function renderThreads() {
 /* =========================================================
    NEW CHAT BUTTON
 ========================================================= */
-newConversationButton.addEventListener("click", (event) => {
+// newConversationButton.addEventListener("click", (event) => {
+//     event.stopPropagation();
+//     createNewThread();
+// }); 
+
+newConversationButton.addEventListener("click", async (event) => {
     event.stopPropagation();
-    createNewThread();
+
+    try {
+        const response = await fetch("/auth/me");
+        const auth = await response.json();
+
+        if (!auth.authenticated) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to start a new conversation.",
+                "warning"
+            );
+            return;
+        }
+
+        createNewThread();
+    } catch (error) {
+        console.error("Authentication check failed:", error);
+        showPopup(
+            "Something went wrong",
+            "Could not verify your login. Please try again.",
+            "error"
+        );
+    }
 });
+
 /* =========================================================
    INITIALIZE CHAT HISTORY
 ========================================================= */
@@ -402,24 +473,77 @@ async function saveMessageToServer(conversationId, role, content) {
 }
 
 /* ========================================================= CHAT ========================================================= */
+//   async function sendMessage() {
+//     try {
+//         =========================================
+//            GET MESSAGE
+//         ========================================= 
+//         const text = messageInput.value.trim();
+//         if (!text) {
+//             showPopup("Empty Message", "Please enter a message before sending.", "warning");
+//             return;
+//         }
+//          =========================================
+//            GET ACTIVE API
+//         ========================================= 
+//         const activeApi = getActiveApi();
+//         if (!activeApi) {
+//             showPopup("No API Selected", "Please add an API and select it before sending a message.", "warning");
+//             return;
+//         }  
+
 async function sendMessage() {
     try {
+        // Check whether the user is logged in.
+        const authResponse = await fetch("/auth/me", {
+            credentials: "same-origin"
+        });
+
+        if (!authResponse.ok) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to send AI messages.",
+                "warning"
+            );
+            return;
+        }
+
+        const auth = await authResponse.json();
+
+        if (!auth.authenticated) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to send AI messages.",
+                "warning"
+            );
+            return;
+        }
+
         /* =========================================
            GET MESSAGE
         ========================================= */
         const text = messageInput.value.trim();
+
         if (!text) {
-            showPopup("Empty Message", "Please enter a message before sending.", "warning");
+            showPopup(
+                "Empty Message",
+                "Please enter a message before sending.",
+                "warning"
+            );
             return;
         }
-        /* =========================================
-           GET ACTIVE API
-        ========================================= */
-        const activeApi = getActiveApi();
-        if (!activeApi) {
-            showPopup("No API Selected", "Please add an API and select it before sending a message.", "warning");
-            return;
-        }
+        
+const activeApi = getActiveApi();
+
+if (!activeApi) {
+    showPopup(
+        "No API Selected",
+        "Please add an API key and select it before sending a message.",
+        "warning"
+    );
+    return;
+}
+
         //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
         //  =========================================
         //    GET API KEY
@@ -879,11 +1003,6 @@ async function loadApiEntries() {
         });
 
         if (response.status === 401) {
-            showPopup(
-                "Login Required",
-                "Please log in to load your saved API keys.",
-                "warning"
-            );
             return;
         }
 
@@ -984,7 +1103,43 @@ function closeApiCreateForm() {
     providerSelectMenu?.classList.remove("open");
 }
 
-addApiKeyButton?.addEventListener("click", openApiCreateForm);
+addApiKeyButton?.addEventListener("click", async () => {
+    try {
+        const response = await fetch("/auth/me", {
+            credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to add an API key.",
+                "warning"
+            );
+            return;
+        }
+
+        const auth = await response.json();
+
+        if (!auth.authenticated) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to add an API key.",
+                "warning"
+            );
+            return;
+        }
+
+        openApiCreateForm();
+    } catch (error) {
+        console.error("Authentication check failed:", error);
+
+        showPopup(
+            "Unable to verify login",
+            "Please try again.",
+            "error"
+        );
+    }
+});
 
 cancelCreateApiButton?.addEventListener(
     "click",
