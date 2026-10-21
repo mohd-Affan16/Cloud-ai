@@ -108,6 +108,7 @@ menuButton.addEventListener(
     event => {
         event.stopPropagation();
         sideMenu.classList.toggle("open");
+        menuButton.classList.toggle('is-active');
     }
 );
 sideMenu.addEventListener(
@@ -174,14 +175,7 @@ function openPage(pageId) {
     );
 }
 /* ========================================================= CLOSE PAGES ========================================================= */
-backButtons.forEach(
-    button => {
-        button.addEventListener(
-            "click",
-            closePages
-        );
-    }
-);
+
 function closePages() {
     pages.forEach(
         page => {
@@ -1286,3 +1280,43 @@ document.addEventListener(
         }
     }
 );
+// ==========================================
+// BACK BUTTON ROUTING LOGIC
+// ==========================================
+backButtons.forEach(button => {
+    button.addEventListener('click', function() {
+        const currentPage = this.closest('.app-page');
+        
+        if (currentPage) {
+            // 1. Close the page we are currently looking at
+            currentPage.classList.remove('open'); 
+            
+            // 2. If we just closed Themes or API, pop Settings back open.
+            if (currentPage.id !== 'settingsPage') {
+                document.getElementById('settingsPage').classList.add('open');
+            }
+        }
+    });
+});
+
+// ==========================================
+// BACK BUTTON ROUTING LOGIC (BULLETPROOF)
+// ==========================================
+backButtons.forEach(button => {
+    button.addEventListener('click', function(e) {
+        // This stops any other conflicting click events from firing simultaneously
+        e.stopPropagation(); 
+        
+        const currentPage = this.closest('.app-page');
+        
+        if (currentPage) {
+            // 1. Close the current page
+            currentPage.classList.remove('open'); 
+            
+            // 2. If it is NOT the settings page, open the settings page
+            if (currentPage.id !== 'settingsPage') {
+                document.getElementById('settingsPage').classList.add('open');
+            }
+        }
+    });
+});
