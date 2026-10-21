@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloud-ai Turtle Loader</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #fafafa;
+        font-family: Arial, sans-serif;
+    }
+
+    .loader {
+        width: min(82vw, 650px);
+        text-align: center;
+    }
+
+    .track {
+        height: 76px;
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Outer organic wrapper replacing the rigid rectangular .bar */
+    .bar-container {
+        position: relative;
+        width: 100%;
+        height: 38px;
+        display: flex;
+        align-items: center;
+    }
+
+    /* The actual hand-drawn vector outline frame placed perfectly on top */
+    .sketch-frame {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
+        pointer-events: none;
+        filter: url('#rough-marker-sketch');
+    }
+
+    /* Inner masking container that prevents the red color from bleeding outside the squiggly outlines */
+    
+    .fill-mask {
+        position: absolute;
+        top: 4px;
+        left: 4px;
+        right: 4px;
+        bottom: 5px;
+        z-index: 1;
+        overflow: hidden;
+        /* Matches the organic slope of the hand-drawn lines */
+        clip-path: polygon(0% 12%, 100% 8%, 99% 90%, 0% 95%);
+        filter: url('#rough-marker-sketch');
+    }
+
+    /* The Red Marker Scribble Progress Bar */
+   .fill {
+    position: relative;
+    width: 0%; /* Updates dynamically via JS */
+    height: 100%;
+    transition: width 0.4s ease;
+    
+    /* FIX: Moving the jagged clip-path here applies the rough pen-stop look 
+       directly to the advancing front edge where the turtle is walking! */
+    clip-path: polygon(
+        0% 0%, 
+        98% 0%, 
+        96% 22%, 
+        100% 50%, 
+        95% 78%, 
+        99% 100%, 
+        0% 100%
+    );
+}
+.fill::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    
+    /* Matches the total max-width of your container track so the texture stays locked */
+    width: 650px; 
+    height: 100%;
+    
+    /* Layered horizontal marker pen textures */
+    background: repeating-linear-gradient(
+        90deg,
+        #e91f32 0px,
+        #f12636 4px,
+        #ff5963 8px,
+        #e91f32 12px
+    );
+    
+    /* REMOVED the clip path from here so the background remains flat and unclipped internally */
+}
+/* When progress hits 100%, remove the jagged point and fill the whole frame */
+.fill.finished {
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%) !important;
+}
+
+    .turtle {
+        position: absolute;
+        width: 66px;
+        left: 0%;
+        top: -15px; /* Bumped up slightly to walk along the organic curved top line */
+        transform: translateX(-5%);
+        animation: bob 0.35s ease-in-out infinite alternate;
+        will-change: left, transform;
+        z-index: 3;
+    }
+
+    .leg {
+        transform-box: fill-box;
+        transform-origin: center top;
+        animation: step 0.25s ease-in-out infinite alternate;
+    }
+
+    .leg.second {
+        animation-direction: alternate-reverse;
+    }
+
+    @keyframes bob {
+        from { translate: 0 0; rotate: -2deg; }
+        to   { translate: 0 -3px; rotate: 2deg; }
+    }
+
+    @keyframes step {
+        from { rotate: -14deg; }
+        to   { rotate: 14deg; }
+    }
+
+    .label {
+        margin-top: 20px;
+        color: #171717;
+        font-family: "Comic Sans MS", "Segoe Print", cursive;
+        font-size: clamp(22px, 4vw, 30px);
+        font-weight: 700;
+        letter-spacing: 4px;
+        transform: rotate(-1deg);
+        text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.08);
+    }
+
+    .dots span {
+        display: inline-block;
+        animation: blink 1.1s infinite;
+    }
+
+    .dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+
+    .dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes blink {
+        0%, 20% { opacity: 0.15; }
+        50%, 100% { opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .turtle, .leg, .dots span {
+            animation: none;
+        }
+    }
+</style>
+</head>
+
+<body>
+<div class="loader">
+    <div class="track">
+        
+        <!-- Structural Layout Swap: Replaces straight CSS border box with Vector Path Container -->
+        <div class="bar-container">
+            <!-- Asymmetrical hand-drawn frame containing natural dips, curves, and tapered ends -->
+            <svg class="sketch-frame" viewBox="0 0 600 40" preserveAspectRatio="none" xmlns="http://w3.org">
+                <path d="M 6,9 
+                         Q 150,5 300,10 
+                         Q 450,4 594,8 
+                         Q 597,20 593,32 
+                         Q 450,36 300,33 
+                         Q 150,37 5,31 
+                         Q 3,20 6,9 Z" 
+                      fill="none" 
+                      stroke="#242424" 
+                      stroke-width="3.5" 
+                      stroke-linecap="round" 
+                      stroke-linejoin="round" />
+            </svg>
+
+            <!-- Houses the filling internally -->
+            <div class="fill-mask">
+                <div class="fill" id="fill"></div>
+            </div>
+        </div>
+
+        <!-- The Turtle -->
+        <svg class="turtle" id="turtle" viewBox="0 0 120 85" aria-hidden="true">
+            <path d="M20 48 C22 20 43 9 64 14 C84 17 94 32 94 49 L82 56 L30 56 Z" fill="#2E8B57" stroke="#171717" stroke-width="3"/>
+            <path d="M43 15 L38 32 L50 43 L68 42 L78 25 M38 32 L23 38 M50 43 L48 55 M68 42 L78 53" fill="#B7E46A" stroke="#171717" stroke-width="2.5"/>
+            <path d="M87 43 C94 33 100 25 108 29 C119 33 117 47 108 50 L92 54 Z" fill="#8FCE65" stroke="#171717" stroke-width="3"/>
+            <circle cx="108" cy="36" r="2.5" fill="#171717"/>
+            <path class="leg" d="M36 53 L30 66 L40 66 L45 55" fill="#8FCE65" stroke="#171717" stroke-width="3"/>
+            <path class="leg second" d="M72 53 L75 66 L85 66 L83 53" fill="#F5E6C8" stroke="#171717" stroke-width="3"/>
+            <path d="M22 49 L12 54 L24 57" fill="#171717" stroke="#171717" stroke-width="3"/>
+        </svg>
+    </div>
+
+    <div class="label">
+        LOADING<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+</div>
+
+<!-- Fixed hidden SVG template module containing the corrected namespace URI link -->
+<svg style="position: absolute; width: 0; height: 0; pointer-events: none;" xmlns="http://w3.org">
+  <defs>
+    <filter id="rough-marker-sketch">
+      <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="3" result="noise" />
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="3.5" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+  </defs>
+</svg>
+
+<script>
+   const fill = document.getElementById("fill");
+const turtle = document.getElementById("turtle");
+
+let progress = 0;
+let lastTime = 0;
+
+function animate(time) {
+    if (!lastTime) lastTime = time;
+
+    const delta = Math.min(time - lastTime, 50);
+    lastTime = time;
+
+    // Advance the loading progress
+    progress = Math.min(progress + delta * 0.022, 100);
+    
+    fill.style.width = progress + "%";
+    
+    // Position the turtle right at the front edge of the fill line
+    // Stops at 94.5% to keep the turtle nicely inside the right-hand curved boundary
+    const turtlePos = (progress / 100) * 94.5;
+    turtle.style.left = turtlePos + "%"; 
+
+    // FIX: Detect if loading is done and flatten the edge
+    if (progress >= 100) {
+        fill.classList.add("finished");
+    } else {
+        fill.classList.remove("finished");
+    }
+
+    if (progress < 100) {
+        requestAnimationFrame(animate);
+    }
+}
+
+requestAnimationFrame(animate);
+
+</script>
+
+</body>
+</html>

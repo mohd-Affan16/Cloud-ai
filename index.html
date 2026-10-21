@@ -7,6 +7,24 @@
         <link rel="stylesheet" href="/style.css" />
     </head>
     <body>
+        <!-- Cloud-ai Turtle Loader Overlay -->
+<iframe
+    id="turtleLoaderFrame"
+    src="/turtle-loader.html"
+    title="Cloud-ai loading animation"
+    style="
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        z-index: 999999;
+        background: #fafafa;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    "
+></iframe>
         <button id="menuButton" class="menu-button" type="button" aria-label="Open menu">
             <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M4 6H20"></path>
@@ -510,6 +528,61 @@
         <script src="/js/themes.js"></script>
         <script src="/local-conversation-storage.js"></script>
 <script src="/app.js"></script>
+<script>
+(() => {
+    const loader = document.getElementById("turtleLoaderFrame");
+    if (!loader) return;
+
+    let hidden = false;
+
+    function hideLoader() {
+        if (hidden) return;
+        hidden = true;
+
+        loader.style.opacity = "0";
+        loader.style.visibility = "hidden";
+
+        setTimeout(() => loader.remove(), 450);
+    }
+
+    function waitForBackground() {
+        const chat = document.getElementById("chat");
+
+        if (!chat) {
+            window.addEventListener("load", hideLoader, { once: true });
+            return;
+        }
+
+        const background = getComputedStyle(chat).backgroundImage;
+        const match = background.match(/url\(["']?(.*?)["']?\)/);
+
+        if (!match) {
+            window.addEventListener("load", hideLoader, { once: true });
+            return;
+        }
+
+        const image = new Image();
+
+        image.onload = hideLoader;
+        image.onerror = hideLoader;
+        image.src = match[1];
+
+        if (image.complete) {
+            hideLoader();
+        }
+    }
+
+    // Give the existing app.js time to apply the saved theme.
+    if (document.readyState === "complete") {
+        waitForBackground();
+    } else {
+        window.addEventListener("load", waitForBackground, { once: true });
+    }
+
+    // Prevent the loader from remaining forever if an image hangs.
+    setTimeout(hideLoader, 15000);
+})();
+</script>
         <!-- =====================================================
      CUSTOM NOTIFICATION POPUP
 ===================================================== -->
