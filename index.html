@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Cloud Hybrid AI</title>
+        <link rel="stylesheet" href="/style.css" />
+    </head>
+    <body>
+        <!-- Cloud-ai Turtle Loader Overlay -->
+<iframe
+    id="turtleLoaderFrame"
+    src="/turtle-loader.html"
+    title="Cloud-ai loading animation"
+    style="
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: none;
+        z-index: 999999;
+        background: #fafafa;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+    "
+></iframe>
+        <button id="menuButton" class="menu-button" type="button" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6H20"></path>
+                <path d="M4 12H20"></path>
+                <path d="M4 18H20"></path>
+            </svg>
+        </button>
+        <!-- =====================================================
+         SIDE MENU
+    ====================================================== -->
+        <aside id="sideMenu" class="side-menu">
+            <!-- NEW CHAT BUTTON -->
+            <button id="newConversationButton" class="menu-title" type="button">+ New Chat</button>
+            <!-- CHAT HISTORY LIST -->
+            <div class="threads-section">
+                <div class="threads-header">Recent Chats</div>
+                <div id="threadsList" class="threads-list"></div>
+            </div>
+            <!-- <button id="testStorageButton">
+    Test Conversation Storage
+</button> -->
+            <!-- SETTINGS -->
+            <!-- <button
+            class="menu-item"
+            data-page="settingsPage"
+            type="button"
+        >
+            <span class="menu-item-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5A3.5 3.5 0 0 0 12 15.5Z"></path>
+                    <path d="M19.4 15A1.7 1.7 0 0 0 19.7 16.8L19.8 16.9L17.9 18.8L17.8 18.7A1.7 1.7 0 0 0 16 18.4A1.7 1.7 0 0 0 15 20V20.2H9V20A1.7 1.7 0 0 0 8 18.4A1.7 1.7 0 0 0 6.2 18.7L6.1 18.8L4.2 16.9L4.3 16.8A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 3 14H2.8V10H3A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 4.3 7.2L4.2 7.1L6.1 5.2L6.2 5.3A1.7 1.7 0 0 0 8 5.6A1.7 1.7 0 0 0 9 4V3.8H15V4A1.7 1.7 0 0 0 16 5.6A1.7 1.7 0 0 0 17.8 5.3L17.9 5.2L19.8 7.1L19.7 7.2A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 21 10H21.2V14H21A1.7 1.7 0 0 0 19.4 15Z"></path>
+                </svg>
+            </span>
+            <span>Settings</span>
+        </button>
+        <button class="menu-item" data-page="themesPage" type="button">
+            <span class="menu-item-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 3C7 3 3 6.4 3 10.8C3 14.2 5.7 16 8.2 16H10C11.1 16 12 16.9 12 18C12 19.7 13.3 21 15 21C18.3 21 21 16.5 21 11.5C21 6.8 17 3 12 3Z"></path>
+                    <circle cx="7.5" cy="10" r="0.8"></circle>
+                    <circle cx="10" cy="7" r="0.8"></circle>
+                    <circle cx="14" cy="7" r="0.8"></circle>
+                    <circle cx="17" cy="10" r="0.8"></circle>
+                </svg>
+            </span>
+            <span>Themes</span>
+        </button>
+        <button class="menu-item" data-page="apiPage" type="button">
+            <span class="menu-item-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3H13.5A2.5 2.5 0 0 1 16 5.5V7"></path>
+                    <rect x="4" y="7" width="16" height="12" rx="2"></rect>
+                    <path d="M8 12H16M8 15H13"></path>
+                </svg>
+            </span>
+            <span>API</span>
+        </button>
+     -->
+            <!-- SETTINGS -->
+            <button class="menu-item" data-page="settingsPage" type="button">
+                <span class="menu-item-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 15.5A3.5 3.5 0 1 0 12 8.5A3.5 3.5 0 0 0 12 15.5Z"></path>
+                        <path
+                            d="M19.4 15A1.7 1.7 0 0 0 19.7 16.8L19.8 16.9L17.9 18.8L17.8 18.7A1.7 1.7 0 0 0 16 18.4A1.7 1.7 0 0 0 15 20V20.2H9V20A1.7 1.7 0 0 0 8 18.4A1.7 1.7 0 0 0 6.2 18.7L6.1 18.8L4.2 16.9L4.3 16.8A1.7 1.7 0 0 0 4.6 15A1.7 1.7 0 0 0 3 14H2.8V10H3A1.7 1.7 0 0 0 4.6 9A1.7 1.7 0 0 0 4.3 7.2L4.2 7.1L6.1 5.2L6.2 5.3A1.7 1.7 0 0 0 8 5.6A1.7 1.7 0 0 0 9 4V3.8H15V4A1.7 1.7 0 0 0 16 5.6A1.7 1.7 0 0 0 17.8 5.3L17.9 5.2L19.8 7.1L19.7 7.2A1.7 1.7 0 0 0 19.4 9A1.7 1.7 0 0 0 21 10H21.2V14H21A1.7 1.7 0 0 0 19.4 15Z"
+                        ></path>
+                    </svg>
+                </span>
+                <span>Settings</span>
+            </button>
+            <!-- LOG OUT -->
+            <button id="logoutButton" class="menu-item logout-menu-item" type="button">
+                <span class="menu-item-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10 5H6.5A2.5 2.5 0 0 0 4 7.5V16.5A2.5 2.5 0 0 0 6.5 19H10"></path>
+                        <path d="M14 8L18 12L14 16"></path>
+                        <path d="M18 12H9"></path>
+                    </svg>
+                </span>
+                <span id="authButtonLabel">Login / Sign up</span>
+            </button>
+        </aside>
+        <!-- ===================================================== CHAT ====================================================== -->
+        <main id="chat">
+            <section id="welcome" class="welcome-card">
+                <h2>What will we create today?</h2>
+                <span>Your ideas, one conversation at a time.</span>
+            </section>
+        </main>
+        <!-- ===================================================== MESSAGE INPUT ====================================================== -->
+        <div id="inputContainer" class="input-container">
+            <textarea id="messageInput" placeholder="Message Cloud Hybrid AI..." rows="1"></textarea>
+            <!-- API SWITCHER -->
+            <div class="api-switcher">
+                <button
+                    id="apiSwitcherButton"
+                    class="api-switcher-button"
+                    type="button"
+                    title="Switch API"
+                    aria-label="Switch API"
+                >
+                    <span class="api-switcher-icon"> ⇄ </span>
+                </button>
+                <div id="apiSwitcherMenu" class="api-switcher-menu">
+                    <div class="api-switcher-title">API</div>
+                    <div id="apiSwitcherCurrent" class="api-switcher-current">No API selected</div>
+                    <div id="apiSwitcherList" class="api-switcher-list"></div>
+                </div>
+            </div>
+            <!-- SEND -->
+            <button id="sendButton" class="send-button" type="button" aria-label="Send message" title="Send">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M3 20.5L21 12 3 3.5 3.8 10.2 15 12 3.8 13.8 3 20.5Z"></path>
+                </svg>
+            </button>
+        </div>
+        <!-- ===================================================== SETTINGS PAGE ====================================================== -->
+        <section id="settingsPage" class="app-page">
+            <div class="page-header">
+                <h1>Settings</h1>
+                <button class="back-button" type="button">←</button>
+            </div>
+            <div class="glass-card settings-card">
+                <h2>Core Settings</h2>
+                <!-- <div class="setting-row">
+                    <div>
+                        <strong> Glass Interface </strong>
+                        <p>Use the translucent glass interface.</p>
+                    </div>
+                    <input type="checkbox" checked />
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <strong> Animations </strong>
+                        <p>Enable interface animations.</p>
+                    </div>
+                    <input type="checkbox" checked />
+                </div> -->
+                 <!-- API MANAGEMENT -->
+                    <button class="settings-navigation-item" data-page="apiPage" type="button">
+                        <span class="settings-navigation-left">
+                            <span class="menu-item-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M8 7V5.5A2.5 2.5 0 0 1 10.5 3H13.5A2.5 2.5 0 0 1 16 5.5V7"></path>
+                                    <rect x="4" y="7" width="16" height="12" rx="2"></rect>
+                                    <path d="M8 12H16M8 15H13"></path>
+                                </svg>
+                            </span>
+                            <!-- <span>
+                API Management
+            </span> -->
+                            <span class="settings-navigation-text">
+                                <strong>API Management</strong>
+                                <small>Manage the providers used by your assistant.</small>
+                            </span>
+                        </span>
+                        <span class="settings-navigation-arrow"> → </span>
+                    </button>
+                    <button
+                            id="localStorageSettingsButton"
+                            class="settings-navigation-item"
+                            data-page="localStoragePage"
+                            type="button"
+                        >
+                        <span class="settings-navigation-left">
+        <span class="menu-item-icon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M4 6A2 2 0 0 1 6 4H10L12 6H18A2 2 0 0 1 20 8V18A2 2 0 0 1 18 20H6A2 2 0 0 1 4 18Z"></path>
+                <path d="M8 12H16M8 15H13"></path>
+            </svg>
+        </span>
+        <span class="settings-navigation-text">
+            <strong>Local Conversation Storage</strong>
+            <small>Choose where your conversation history is saved.</small>
+        </span>
+    </span>
+    <span class="settings-navigation-arrow"> → </span>
+</button>
+                <!-- <h2>Chat</h2>
+                <div class="setting-row">
+                    <div>
+                        <strong> Enter to Send </strong>
+                        <p>Press Enter to send a message.</p>
+                    </div>
+                    <input id="enterToSend" type="checkbox" checked />
+                </div> -->
+                <h2>More</h2>
+                <div class="settings-navigation-grid">
+                    <!-- THEMES -->
+                    <button class="settings-navigation-item" data-page="themesPage" type="button">
+                        <span class="settings-navigation-left">
+                            <span class="menu-item-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M12 3C7 3 3 6.4 3 10.8C3 14.2 5.7 16 8.2 16H10C11.1 16 12 16.9 12 18C12 19.7 13.3 21 15 21C18.3 21 21 16.5 21 11.5C21 6.8 17 3 12 3Z"
+                                    ></path>
+                                    <circle cx="7.5" cy="10" r="0.8"></circle>
+                                    <circle cx="10" cy="7" r="0.8"></circle>
+                                    <circle cx="14" cy="7" r="0.8"></circle>
+                                    <circle cx="17" cy="10" r="0.8"></circle>
+                                </svg>
+                            </span>
+                            <!-- <span>
+                Themes
+            </span> -->
+                            <span class="settings-navigation-text">
+                                <strong>Themes</strong>
+                                <small>Choose how your assistant looks.</small>
+                            </span>
+                        </span>
+                        <span class="settings-navigation-arrow"> → </span>
+                    </button>
+                   
+                </div>
+</section>
+<!-- LOCAL CONVERSATION STORAGE PAGE -->
+
+<section id="localStoragePage" class="app-page">
+    <div class="page-header">
+        <h1>Local Conversation Storage</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Keep your conversation history in a folder you control.
+    </p>
+
+    <div class="glass-card local-storage-card">
+        <h2>Storage Location</h2>
+
+        <p id="storageFolderStatus" class="storage-status">
+            No folder selected
+        </p>
+
+        <button
+            id="chooseStorageFolderButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Choose Storage Folder
+        </button>
+
+        <div class="storage-divider"></div>
+
+        <h2>Conversation Backup</h2>
+
+        <p class="storage-description">
+            Check your folder for missing conversations and back them up
+            without deleting your existing history.
+        </p>
+
+        <button
+            id="checkAndBackupButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Check &amp; Back Up Conversations
+        </button>
+        
+<div class="storage-divider"></div>
+
+<h2>Migration</h2>
+
+<p class="storage-description">
+    Move your conversation archive to a different folder.
+    Your current archive will be kept until the move is verified.
+</p>
+
+<button
+    id="migrateStorageButton"
+    class="storage-action-button"
+    type="button"
+>
+    Migrate Storage Folder
+</button>
+
+        <p id="storageBackupStatus" class="storage-description">
+            Choose a folder to get started.
+        </p>
+    </div>
+</section>
+
+    <div class="page-header">
+        <h1>Local Conversation Storage</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Keep your conversation history in a folder you control.
+    </p>
+
+    <div class="glass-card local-storage-card">
+        <h2>Storage Location</h2>
+
+        <p id="storageFolderStatus" class="storage-status">
+            No folder selected
+        </p>
+
+        <button
+            id="chooseStorageFolderButton"
+            class="storage-action-button"
+            type="button"
+        >
+            Choose Storage Folder
+        </button>
+
+        <div class="storage-divider"></div>
+
+        <h2>Existing Conversations</h2>
+
+        <p class="storage-description">
+            Preview your browser history before copying it to your folder.
+            Your original browser history will remain unchanged.
+        </p>
+
+        <div class="storage-summary">
+            <div class="storage-stat">
+                <strong id="migrationConversationCount">—</strong>
+                <span>Conversations</span>
+            </div>
+
+            <div class="storage-stat">
+                <strong id="migrationMessageCount">—</strong>
+                <span>Messages</span>
+            </div>
+        </div>
+
+        <p id="migrationStatus" class="storage-description">
+            Preview not generated yet.
+        </p>
+
+        <div class="storage-actions">
+            <button
+                id="previewMigrationButton"
+                class="storage-action-button"
+                type="button"
+            >
+                Preview Migration
+            </button>
+
+            <button
+                id="migrateConversationsButton"
+                class="storage-action-button"
+                type="button"
+                disabled
+            >
+                Migrate Existing Conversations
+            </button>
+        </div>
+        
+<button
+    id="verifyArchiveButton"
+    class="storage-action-button"
+    type="button"
+>
+    Verify Existing Archive
+</button>
+<p id="archiveVerificationStatus">
+    Existing archive has not been verified yet.
+</p>
+<pre id="archiveVerificationResults" hidden></pre>
+
+    </div>
+    
+
+            </div>
+            
+        </section>
+        <!-- ===================================================== THEMES PAGE ====================================================== -->
+        <section id="themesPage" class="app-page">
+            <div class="page-header">
+                <h1>Themes</h1>
+                <button class="back-button" type="button">←</button>
+            </div>
+            <p class="page-description">Choose how your assistant looks.</p>
+           
+<!-- Theme gallery: JavaScript creates the cards here -->
+<div class="theme-scroll-wrapper">
+    <div
+        id="themeGallery"
+        class="theme-grid"
+        aria-label="Available themes"
+    ></div>
+</div>
+
+            <!-- CUSTOM THEME -->
+            <div class="custom-theme-card">
+                <label for="customThemeInput" class="custom-theme-icon"> + </label>
+                <div class="custom-theme-content">
+                    <h2>Custom Theme</h2>
+                    <p>Use your own wallpaper.</p>
+                </div>
+                <!-- <label for="customThemeInput" class="custom-theme-button" > Choose Wallpaper </label> -->
+                <input id="customThemeInput" type="file" accept="image/*" hidden />
+            </div>
+        </section>
+        <!-- ===================================================== API PAGE ====================================================== -->
+   
+<section id="apiPage" class="app-page">
+    <div class="page-header">
+        <h1>API Management</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <p class="page-description">
+        Add and manage the providers used by your assistant.
+    </p>
+
+    <div class="api-content">
+
+        <!-- Saved API cards appear here -->
+        <div id="apiList" class="api-list"></div>
+
+         <!-- Full-width Add New Key button -->
+        <div id="apiCreateCard" class="api-card api-create-card" hidden>
+            <div class="api-create-title">Create API</div>
+
+            <label for="apiNameInput">Name</label>
+            <input
+                id="apiNameInput"
+                type="text"
+                placeholder="Enter API name"
+            />
+
+            <label>Provider</label>
+            <div id="providerSelectWrapper" class="api-provider-select-wrapper">
+                <button
+                    id="providerSelectButton"
+                    class="api-provider-select-button"
+                    type="button"
+                >
+                    <span id="providerSelectValue">Groq</span>
+                    <span class="api-provider-arrow">▼</span>
+                </button>
+
+                <div
+                    id="providerSelectMenu"
+                    class="api-provider-select-menu"
+                    role="listbox"
+                >
+                    <button class="provider-option selected" data-value="groq" type="button">Groq</button>
+                    <button class="provider-option" data-value="huggingface" type="button">Hugging Face</button>
+                    <button class="provider-option" data-value="openai" type="button">OpenAI</button>
+                </div>
+            </div>
+
+            <label for="apiKeyInput">API Key</label>
+            <input
+                id="apiKeyInput"
+                type="password"
+                placeholder="Enter API key"
+                autocomplete="off"
+            />
+
+            <div class="create-api-row">
+                <button
+                    id="cancelCreateApiButton"
+                    class="api-cancel-button"
+                    type="button"
+                >
+                    Cancel
+                </button>
+                <button
+                    id="createApiButton"
+                    class="api-create-button"
+                    type="button"
+                >
+                    Create
+                </button>
+            </div>
+        </div>
+       
+        <button
+            id="addApiKeyButton"
+            class="add-api-key-button"
+            type="button"
+        >
+            <span class="add-api-key-plus">+</span>
+            <span>Add New Key</span>
+        </button>
+
+        <!-- Create API form, hidden initially -->
+
+        
+
+    </div>
+</section>
+
+        <!-- ===================================================== DELETE MODAL ====================================================== -->
+        <div id="deleteModal" class="delete-modal" aria-hidden="true">
+            <div class="delete-modal-card">
+                <div class="delete-modal-icon">!</div>
+                <h2>Delete API?</h2>
+                <p id="deleteModalText">Are you sure you want to delete this API?</p>
+                <div class="delete-modal-actions">
+                    <button id="cancelDeleteButton" class="delete-cancel-button" type="button">Cancel</button>
+                    <button id="confirmDeleteButton" class="delete-confirm-button" type="button">Delete</button>
+                </div>
+            </div>
+        </div>
+        <script src="/js/themes.js"></script>
+        <script src="/local-conversation-storage.js"></script>
+<script src="/app.js"></script>
+<script>
+(() => {
+    const loader = document.getElementById("turtleLoaderFrame");
+    if (!loader) return;
+
+    let hidden = false;
+
+    function hideLoader() {
+        if (hidden) return;
+        hidden = true;
+
+        loader.style.opacity = "0";
+        loader.style.visibility = "hidden";
+
+        setTimeout(() => loader.remove(), 450);
+    }
+
+    function waitForBackground() {
+        const chat = document.getElementById("chat");
+
+        if (!chat) {
+            window.addEventListener("load", hideLoader, { once: true });
+            return;
+        }
+
+        const background = getComputedStyle(chat).backgroundImage;
+        const match = background.match(/url\(["']?(.*?)["']?\)/);
+
+        if (!match) {
+            window.addEventListener("load", hideLoader, { once: true });
+            return;
+        }
+
+        const image = new Image();
+
+        image.onload = hideLoader;
+        image.onerror = hideLoader;
+        image.src = match[1];
+
+        if (image.complete) {
+            hideLoader();
+        }
+    }
+
+    // Give the existing app.js time to apply the saved theme.
+    if (document.readyState === "complete") {
+        waitForBackground();
+    } else {
+        window.addEventListener("load", waitForBackground, { once: true });
+    }
+
+    // Prevent the loader from remaining forever if an image hangs.
+    setTimeout(hideLoader, 15000);
+})();
+</script>
+        <!-- =====================================================
+     CUSTOM NOTIFICATION POPUP
+===================================================== -->
+        <div id="notificationPopup" class="notification-popup" aria-hidden="true">
+            <div class="notification-icon" id="notificationIcon">!</div>
+            <div class="notification-content">
+                <h3 id="notificationTitle">Error</h3>
+                <p id="notificationMessage">Something went wrong.</p>
+            </div>
+            <button id="notificationClose" class="notification-close" type="button" aria-label="Close notification">
+                ×
+            </button>
+        </div>
+        
+    </body>
+</html>
