@@ -926,10 +926,20 @@ body {
 }
 .api-create-card {
     width: min(1000px, 100%);
-    margin: 20px auto 0;
+    margin: 20px auto;
+    padding: 22px;
+    border-radius: 20px;
+
+    background: rgba(255, 255, 255, 0.075);
+    backdrop-filter: blur(20px) saturate(115%);
+    -webkit-backdrop-filter: blur(20px) saturate(115%);
+
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
 }
 .api-create-title {
     margin-bottom: 4px;
@@ -945,6 +955,7 @@ body {
 }
 .api-card input,
 .api-card select,
+.api-create-card input,
 .edit-provider-input {
     width: 100%;
     padding: 12px 14px;
@@ -956,12 +967,14 @@ body {
     color: #ffffff;
     font-size: 14px;
 }
-.api-card input::placeholder {
+.api-card input::placeholder ,
+.api-create-card input::placeholder{
     color: rgba(255, 255, 255, 0.38);
 }
 .api-card input:focus,
 .api-card select:focus,
-.edit-provider-input:focus {
+.edit-provider-input:focus,
+.api-create-card input:focus {
     border-color: rgba(255, 255, 255, 0.3);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -997,6 +1010,11 @@ body {
     font-size: 12px;
 }
 .api-provider-select-menu {
+    max-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.4) transparent;
     position: absolute;
     left: 0;
     right: 0;
@@ -1010,6 +1028,18 @@ body {
     background: rgba(15, 15, 20, 0.96);
     box-shadow: 0 14px 30px rgba(0, 0, 0, 0.25);
     z-index: 10;
+}
+.api-provider-select-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.api-provider-select-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 10px;
+}
+
+.api-provider-select-menu::-webkit-scrollbar-track {
+    background: transparent;
 }
 .api-provider-select-menu.open {
     display: flex;
