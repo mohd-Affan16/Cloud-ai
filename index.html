@@ -25,13 +25,24 @@
         transition: opacity 0.4s ease, visibility 0.4s ease;
     "
 ></iframe>
-        <button id="menuButton" class="menu-button" type="button" aria-label="Open menu">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M4 6H20"></path>
-                <path d="M4 12H20"></path>
-                <path d="M4 18H20"></path>
-            </svg>
-        </button>
+        
+<button
+    id="menuButton"
+    class="menu-button"
+    type="button"
+    aria-label="Open menu"
+    aria-controls="sideMenu"
+    aria-expanded="false"
+>
+    <lottie-player
+        id="menuAnimation"
+        src="/animations/menu-open-close.json"
+        background="transparent"
+        speed="1"
+        style="width: 32px; height: 32px; pointer-events: none;"
+    ></lottie-player>
+</button>
+
         <!-- =====================================================
          SIDE MENU
     ====================================================== -->
@@ -525,9 +536,14 @@
                 </div>
             </div>
         </div>
-        <script src="/js/themes.js"></script>
-        <script src="/local-conversation-storage.js"></script>
+        
+<script src="/js/themes.js"></script>
+<script src="/local-conversation-storage.js"></script>
+
+<script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+
 <script src="/app.js"></script>
+
 <script>
 (() => {
     const loader = document.getElementById("turtleLoaderFrame");
