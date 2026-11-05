@@ -391,6 +391,11 @@ function openPage(pageId) {
         return;
     }
     page.classList.add("open");
+    page.scrollTop = 0;
+window.scrollTo({
+    top: 0,
+    behavior: "instant"
+});
     /* Hide message input while Settings / Themes / API is open. */
     inputContainer.classList.add("page-hidden");
 }

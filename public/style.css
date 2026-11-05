@@ -2067,3 +2067,860 @@ body {
         flex-direction: column;
     }
 }
+/* =====================================
+   ABOUT US - TEAM SECTION
+===================================== */
+
+.about-team-section {
+    width: min(1250px, calc(100% - 76px));
+    margin: 35px auto 50px;
+}
+
+.about-team-section > h2 {
+    font-size: 28px;
+    margin-bottom: 22px;
+    color: white;
+}
+
+.about-team-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.about-team-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    padding: 24px;
+    min-height: 130px;
+
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+
+    transition: transform 0.3s ease,
+                background 0.3s ease;
+}
+
+.about-team-card:hover {
+    transform: translateY(-5px);
+    background: rgba(255, 255, 255, 0.19);
+}
+
+.team-info {
+    flex: 1;
+}
+
+.team-heading h3 {
+    font-size: 19px;
+    margin: 0 0 5px;
+    color: white;
+}
+
+.team-role {
+    display: inline-block;
+    font-size: 13px;
+    padding: 5px 12px;
+    margin-bottom: 10px;
+
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+}
+
+.team-info p {
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.team-arrow {
+    font-size: 25px;
+    color: white;
+}
+
+/* Responsive layout */
+
+@media (max-width: 700px) {
+    .about-team-section {
+        width: calc(100% - 40px);
+    }
+
+    .about-team-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* =====================================
+   ABOUT US - PAGE ALIGNMENT
+===================================== */
+
+#aboutPage {
+    width: 100%;
+    min-height: 100vh;
+    padding: 25px 0 50px;
+    box-sizing: border-box;
+}
+
+/* Common content alignment */
+#aboutPage .page-header,
+#aboutPage .glass-card,
+#aboutPage .about-team-section {
+    width: min(1250px, calc(100% - 80px));
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+}
+
+/* About Us heading */
+#aboutPage .page-header {
+    margin-top: 0;
+    margin-bottom: 35px;
+}
+
+/* Project description */
+#aboutPage .glass-card {
+    padding: 28px 32px;
+    margin-bottom: 40px;
+}
+
+/* Team section */
+#aboutPage .about-team-section {
+    margin-top: 0;
+}
+
+/* Responsive spacing */
+@media (max-width: 700px) {
+    #aboutPage .page-header,
+    #aboutPage .glass-card,
+    #aboutPage .about-team-section {
+        width: calc(100% - 32px);
+    }
+
+    #aboutPage .glass-card {
+        padding: 22px;
+        margin-bottom: 30px;
+    }
+}
+/* =====================================
+   ABOUT US - PROJECT DESCRIPTION
+===================================== */
+
+#aboutPage .glass-card {
+    width: min(1250px, calc(100% - 80px));
+    min-height: auto;
+    padding: 32px 36px;
+    margin: 0 auto 35px;
+
+    display: flex;
+    align-items: center;
+
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 24px;
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    box-sizing: border-box;
+}
+
+#aboutPage .about-project-content {
+    width: 100%;
+    max-width: 1000px;
+}
+
+#aboutPage .about-project-content h2 {
+    font-size: 25px;
+    font-weight: 700;
+    margin: 0 0 14px;
+    color: white;
+}
+
+#aboutPage .about-project-content p {
+    max-width: 900px;
+    font-size: 16px;
+    line-height: 1.8;
+    letter-spacing: 0.2px;
+    margin: 0;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+    #aboutPage .glass-card {
+        width: calc(100% - 32px);
+        padding: 24px;
+        margin-bottom: 28px;
+    }
+
+    #aboutPage .about-project-content h2 {
+        font-size: 21px;
+    }
+
+    #aboutPage .about-project-content p {
+        font-size: 14px;
+        line-height: 1.7;
+    }
+}
+/* =====================================
+   ABOUT US - DESCRIPTION ALIGNMENT
+===================================== */
+
+#aboutPage .glass-card {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 28px 30px;
+}
+
+#aboutPage .about-project-content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+}
+
+#aboutPage .about-project-content h2 {
+    margin: 0 0 12px;
+    text-align: left;
+}
+
+#aboutPage .about-project-content p {
+    max-width: 100%;
+    margin: 0;
+    text-align: left;
+    line-height: 1.7;
+}
+#aboutPage .about-team-section > h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+
+    font-size: 28px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 0 0 32px;
+}
+
+#aboutPage .about-team-section > h2::before,
+#aboutPage .about-team-section > h2::after {
+    content: "";
+    flex: 1;
+    max-width: 180px;
+    height: 3px;
+    border-radius: 10px;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        #a66bff
+    );
+}
+
+#aboutPage .about-team-section > h2::after {
+    background: linear-gradient(
+        90deg,
+        #a66bff,
+        transparent
+    );
+}
+/* Purple role badges */
+
+#aboutPage .team-role {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 15px;
+    border-radius: 25px;
+
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+
+    background: rgba(151, 91, 235, 0.35);
+    border: 1px solid rgba(190, 145, 255, 0.5);
+
+    box-shadow: 0 3px 12px rgba(120, 65, 200, 0.15);
+}
+
+#aboutPage .role-icon {
+    font-size: 15px;
+    color: #e0c4ff;
+}
+/* =========================================
+   ABOUT US - FINAL LAYOUT FIX
+========================================= */
+
+/* Page spacing */
+#aboutPage {
+    padding: 30px 0 55px;
+    box-sizing: border-box;
+}
+
+/* Description card */
+#aboutPage .about-project-card {
+    width: min(1250px, calc(100% - 80px));
+    min-height: 0;
+    padding: 26px 30px;
+    margin: 0 auto 35px;
+    box-sizing: border-box;
+}
+
+#aboutPage .about-project-content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+}
+
+#aboutPage .about-project-content h2 {
+    margin: 0 0 12px;
+}
+
+#aboutPage .about-project-content p {
+    max-width: 100%;
+    margin: 0;
+    line-height: 1.7;
+}
+
+/* Team section */
+#aboutPage .about-team-section {
+    width: min(1250px, calc(100% - 80px));
+    margin: 35px auto;
+}
+
+/* Team cards - single vertical column */
+
+#aboutPage .about-team-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
+}
+
+/* Individual cards */
+#aboutPage .about-team-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+
+    width: 100%;
+    min-height: 125px;
+    box-sizing: border-box;
+}
+
+#aboutPage .team-info {
+    flex: 1;
+    min-width: 0;
+}
+
+/* Name and role badge */
+#aboutPage .team-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#aboutPage .team-heading h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+#aboutPage .team-role {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    width: auto;
+    min-width: 0;
+    padding: 7px 13px;
+    margin: 0;
+
+    white-space: nowrap;
+    border-radius: 25px;
+    font-size: 13px;
+}
+
+#aboutPage .role-icon {
+    display: block;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+#aboutPage .team-arrow {
+    flex-shrink: 0;
+    font-size: 23px;
+}
+
+/* Mobile */
+@media (max-width: 700px) {
+    #aboutPage .about-project-card,
+    #aboutPage .about-team-section {
+        width: calc(100% - 32px);
+    }
+
+    #aboutPage .about-team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    #aboutPage .team-heading {
+        align-items: flex-start;
+    }
+}
+/* UNIVERSAL NEUTRAL ROLE BADGES */
+
+#aboutPage .team-role {
+    background: rgba(220, 226, 234, 0.25)!important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+
+    color: #FFFFFF !important;
+
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08);
+}
+
+#aboutPage .role-icon {
+    color: #FFFFFF !important;
+}
+/* NEUTRAL TEAM DIVIDER */
+
+#aboutPage .about-team-section > h2::before,
+#aboutPage .about-team-section > h2::after {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.75)
+    ) !important;
+}
+
+#aboutPage .about-team-section > h2::after {
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.75),
+        transparent
+    ) !important;
+}
+/* NEUTRAL GLASS TEAM CARDS */
+
+#aboutPage .about-team-card {
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+
+    box-shadow:
+        0 8px 25px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+#aboutPage .team-arrow {
+    color: white;
+    border-color: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.12);
+}
+/* Remove unwanted arrow background */
+
+#aboutPage .team-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 28px;
+    padding: 0;
+    border-radius: 0;
+    line-height: 1;
+}
+
+/* No background on hover either */
+#aboutPage .about-team-card:hover .team-arrow {
+    background: transparent !important;
+}
+/* =====================================
+   CLOUD HYBRID AI - GRAPHITE ACCENTS
+===================================== */
+
+:root {
+    --accent-graphite: #343B46;
+    --accent-graphite-light: #8993A3;
+    --accent-text: #FFFFFF;
+}
+
+/* Team role badges */
+#aboutPage .team-role {
+    background: rgba(52, 59, 70, 0.78) !important;
+    border: 1px solid rgba(255, 255, 255, 0.22) !important;
+    color: var(--accent-text) !important;
+}
+
+/* SVG icons */
+#aboutPage .role-icon {
+    color: #FFFFFF !important;
+}
+
+/* Meet the Team divider */
+#aboutPage .about-team-section > h2::before,
+#aboutPage .about-team-section > h2::after {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--accent-graphite-light)
+    ) !important;
+}
+
+/* Team card borders */
+#aboutPage .about-team-card {
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* Arrow */
+#aboutPage .team-arrow {
+    background: transparent !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* =====================================================
+   CLOUD HYBRID AI - ABOUT US
+   FROSTED SILVER DESIGN SYSTEM
+===================================================== */
+
+/* ---------- ABOUT US PAGE ---------- */
+
+#aboutPage {
+    width: 100%;
+    min-height: 100vh;
+    padding: 30px 0 55px;
+    box-sizing: border-box;
+}
+
+/* ---------- PAGE HEADER ---------- */
+
+#aboutPage .page-header {
+    width: min(1250px, calc(100% - 80px));
+    margin: 0 auto 35px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#aboutPage .page-header h1 {
+    color: #FFFFFF;
+    font-size: 32px;
+    font-weight: 700;
+    margin: 0;
+}
+
+/* ---------- PROJECT DESCRIPTION ---------- */
+
+#aboutPage .about-project-card {
+    width: min(1250px, calc(100% - 80px));
+    margin: 0 auto 40px;
+    padding: 28px 35px;
+    box-sizing: border-box;
+
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(220, 226, 234, 0.35);
+    border-radius: 24px;
+
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+
+    box-shadow: 0 8px 25px rgba(52, 59, 70, 0.12);
+}
+
+#aboutPage .about-project-content {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+}
+
+#aboutPage .about-project-content h2 {
+    color: #FFFFFF;
+    font-size: 26px;
+    font-weight: 700;
+    margin: 0 0 14px;
+}
+
+#aboutPage .about-project-content p {
+    color: rgba(255, 255, 255, 0.90);
+    font-size: 16px;
+    line-height: 1.8;
+    margin: 0;
+    max-width: 100%;
+}
+
+/* ---------- MEET THE TEAM SECTION ---------- */
+
+#aboutPage .about-team-section {
+    width: min(1250px, calc(100% - 80px));
+    margin: 35px auto;
+}
+
+/* Team heading */
+
+#aboutPage .about-team-section > h2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 25px;
+
+    color: #FFFFFF;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+
+    margin: 0 0 35px;
+}
+
+/* Silver divider lines */
+
+#aboutPage .about-team-section > h2::before,
+#aboutPage .about-team-section > h2::after {
+    content: "";
+    flex: 1;
+    max-width: 180px;
+    height: 3px;
+    border-radius: 10px;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(220, 226, 234, 0.85)
+    );
+}
+
+#aboutPage .about-team-section > h2::after {
+    background: linear-gradient(
+        90deg,
+        rgba(220, 226, 234, 0.85),
+        transparent
+    );
+}
+
+/* ---------- TEAM GRID ---------- */
+
+/* All cards in one vertical column */
+
+#aboutPage .about-team-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    width: 100%;
+}
+
+/* ---------- INDIVIDUAL TEAM CARDS ---------- */
+
+#aboutPage .about-team-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+
+    width: 100%;
+    min-height: 145px;
+    padding: 24px 30px;
+    box-sizing: border-box;
+
+    background: rgba(255, 255, 255, 0.13);
+    border: 1px solid rgba(220, 226, 234, 0.35);
+    border-radius: 24px;
+
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+
+    box-shadow:
+        0 8px 25px rgba(52, 59, 70, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+
+    transition:
+        background 0.3s ease,
+        border-color 0.3s ease,
+        transform 0.3s ease;
+}
+
+/* Card hover */
+
+#aboutPage .about-team-card:hover {
+    background: rgba(220, 226, 234, 0.22);
+    border-color: rgba(255, 255, 255, 0.45);
+    transform: translateY(-3px);
+}
+
+/* ---------- TEAM INFORMATION ---------- */
+
+#aboutPage .team-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#aboutPage .team-heading {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+#aboutPage .team-heading h3 {
+    color: #FFFFFF;
+    font-size: 19px;
+    font-weight: 700;
+    margin: 0 0 8px;
+}
+
+#aboutPage .team-info p {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 15px;
+    line-height: 1.6;
+    margin: 8px 0 0;
+}
+
+/* ---------- FROSTED SILVER ROLE BADGES ---------- */
+
+#aboutPage .team-role {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    width: fit-content;
+    min-width: 0;
+    padding: 8px 15px;
+    margin: 0;
+
+    white-space: nowrap;
+
+    background: rgba(220, 226, 234, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 25px;
+
+    color: #FFFFFF;
+    font-size: 13px;
+    font-weight: 600;
+
+    box-shadow: 0 3px 12px rgba(52, 59, 70, 0.10);
+}
+
+/* ---------- SVG ROLE ICONS ---------- */
+
+#aboutPage .role-icon {
+    display: block;
+    width: 19px;
+    height: 19px;
+    flex-shrink: 0;
+
+    color: #FFFFFF;
+}
+
+/* ---------- ARROW ---------- */
+
+#aboutPage .team-arrow {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    color: #FFFFFF;
+    font-size: 28px;
+    line-height: 1;
+
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+
+    padding: 0;
+    border-radius: 0;
+    transition: transform 0.25s ease;
+}
+
+#aboutPage .about-team-card:hover .team-arrow {
+    background: transparent !important;
+    transform: translateX(5px);
+}
+
+/* ---------- RESPONSIVE DESIGN ---------- */
+
+@media (max-width: 700px) {
+
+    #aboutPage {
+        padding: 20px 0 35px;
+    }
+
+    #aboutPage .page-header,
+    #aboutPage .about-project-card,
+    #aboutPage .about-team-section {
+        width: calc(100% - 32px);
+    }
+
+    #aboutPage .page-header h1 {
+        font-size: 25px;
+    }
+
+    #aboutPage .about-project-card {
+        padding: 22px;
+        margin-bottom: 30px;
+    }
+
+    #aboutPage .about-project-content h2 {
+        font-size: 22px;
+    }
+
+    #aboutPage .about-project-content p {
+        font-size: 14px;
+    }
+
+    #aboutPage .about-team-section > h2 {
+        font-size: 23px;
+        gap: 12px;
+    }
+
+    #aboutPage .about-team-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+    }
+
+    #aboutPage .about-team-card {
+        min-height: 125px;
+        padding: 20px;
+        border-radius: 18px;
+    }
+
+    #aboutPage .team-heading {
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    #aboutPage .team-heading h3 {
+        font-size: 16px;
+    }
+
+    #aboutPage .team-role {
+        font-size: 12px;
+        padding: 7px 11px;
+    }
+
+    #aboutPage .team-arrow {
+        font-size: 23px;
+    }
+}
