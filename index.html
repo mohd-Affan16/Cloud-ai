@@ -569,8 +569,7 @@
             </div>
         </section>
         <!-- ===================================================== API PAGE ====================================================== -->
-   
-<section id="apiPage" class="app-page">
+  <section id="apiPage" class="app-page">
     <div class="page-header">
         <h1>API Management</h1>
         <button class="back-button" type="button">←</button>
@@ -582,22 +581,25 @@
 
     <div class="api-content">
 
-        <!-- Saved API cards appear here -->
+        <!-- Saved API cards -->
         <div id="apiList" class="api-list"></div>
 
-         <!-- Full-width Add New Key button -->
-        <div id="apiCreateCard" class="api-card api-create-card" hidden>
+        <!-- Create API form (hidden initially) -->
+        <div id="apiCreateCard" class="api-create-card" hidden>
+
             <div class="api-create-title">Create API</div>
 
-            <label for="apiNameInput">Name</label>
+            <label for="apiNameInput">Model Name</label>
             <input
                 id="apiNameInput"
                 type="text"
-                placeholder="Enter API name"
+                placeholder="Enter model name"
+                maxlength="200"
             />
 
             <label>Provider</label>
             <div id="providerSelectWrapper" class="api-provider-select-wrapper">
+
                 <button
                     id="providerSelectButton"
                     class="api-provider-select-button"
@@ -613,9 +615,27 @@
                     role="listbox"
                 >
                     <button class="provider-option selected" data-value="groq" type="button">Groq</button>
-                    <button class="provider-option" data-value="huggingface" type="button">Hugging Face</button>
                     <button class="provider-option" data-value="openai" type="button">OpenAI</button>
+                    <button class="provider-option" data-value="google" type="button">Google Gemini</button>
+                    <button class="provider-option" data-value="anthropic" type="button">Anthropic</button>
+                    <button class="provider-option" data-value="openrouter" type="button">OpenRouter</button>
+                    <button class="provider-option" data-value="together" type="button">Together AI</button>
+                    <button class="provider-option" data-value="fireworks" type="button">Fireworks AI</button>
+                    <button class="provider-option" data-value="cerebras" type="button">Cerebras</button>
+                    <button class="provider-option" data-value="mistral" type="button">Mistral AI</button>
+                    <button class="provider-option" data-value="deepseek" type="button">DeepSeek</button>
+                    <button class="provider-option" data-value="custom" type="button">Custom Endpoint</button>
                 </div>
+            </div>
+
+            <div id="customEndpointGroup" hidden>
+                <label for="customEndpointInput">Provider Endpoint</label>
+                <input
+                    id="customEndpointInput"
+                    type="url"
+                    placeholder="https://example.com/v1"
+                    autocomplete="url"
+                />
             </div>
 
             <label for="apiKeyInput">API Key</label>
@@ -624,6 +644,7 @@
                 type="password"
                 placeholder="Enter API key"
                 autocomplete="off"
+                maxlength="10000"
             />
 
             <div class="create-api-row">
@@ -634,6 +655,7 @@
                 >
                     Cancel
                 </button>
+
                 <button
                     id="createApiButton"
                     class="api-create-button"
@@ -642,8 +664,11 @@
                     Create
                 </button>
             </div>
+
         </div>
-       
+        <!-- End Create API form -->
+
+        <!-- Add New Key button -->
         <button
             id="addApiKeyButton"
             class="add-api-key-button"
@@ -652,10 +677,6 @@
             <span class="add-api-key-plus">+</span>
             <span>Add New Key</span>
         </button>
-
-        <!-- Create API form, hidden initially -->
-
-        
 
     </div>
 </section>
