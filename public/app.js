@@ -349,6 +349,37 @@ inputContainer?.addEventListener("click", () => {
     dismissWelcome();
 });
 
+function openPage(pageId) {
+    sideMenu.classList.remove("open");
+    apiSwitcherMenu.classList.remove("open");
+    pages.forEach((page) => {
+        page.classList.remove("open");
+    });
+    const page = document.getElementById(pageId);
+    if (!page) {
+        console.error("Page not found:", pageId);
+        return;
+    }
+    page.classList.add("open");
+    page.scrollTop = 0;
+window.scrollTo({
+    top: 0,
+    behavior: "instant"
+});
+    /* Hide message input while Settings / Themes / API is open. */
+    inputContainer.classList.add("page-hidden");
+}
+/* ========================================================= CLOSE PAGES ========================================================= */
+backButtons.forEach((button) => {
+    button.addEventListener("click", closePages);
+});
+function closePages() {
+    pages.forEach((page) => {
+        page.classList.remove("open");
+    });
+    inputContainer.classList.remove("page-hidden");
+}
+/* ========================================================= WELCOME ========================================================= */
 function dismissWelcome() {
     if (!welcome) return;
     welcome.classList.add("hidden");
