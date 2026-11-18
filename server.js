@@ -1,6 +1,13 @@
 //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
 require("dotenv").config();
-
+const {
+    estimateConversationTokens,
+    estimateMessageTokens,
+    normalizeUsage,
+    calculateContextBudget,
+    recordUsageCalibration,
+    getCalibratedInputEstimate
+} = require("./tokenManager");
 const pool = require("./db.js");
 const { encryptApiKey, decryptApiKey } = require("./encryption.js");
 //x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x-x by leader oct 17
@@ -263,24 +270,43 @@ app.post("/api/chat", async (req, res) => {
         });
     }
 
-    const { apiId, message } = req.body;
+   const { apiId, messages } = req.body;
 
-    if (
-        typeof apiId !== "string" ||
-        typeof message !== "string" ||
-        !message.trim()
-    ) {
-        return res.status(400).json({
-            error: "An API ID and message are required."
-        });
-    }
+if (
+    typeof apiId !== "string" ||
+    !Array.isArray(messages) ||
+    messages.length === 0 ||
+    messages.length > 500
+) {
+    return res.status(400).json({
+        error: "A valid API ID and conversation history are required."
+    });
+}
 
-    if (message.length > 50000) {
-        return res.status(400).json({
-            error: "Message is too long."
-        });
-    }
+const validMessages = messages.every(message =>
+    message &&
+    ["user", "assistant"].includes(message.role) &&
+    typeof message.content === "string" &&
+    message.content.trim().length > 0 &&
+    message.content.length <= 50000
+);
 
+if (!validMessages) {
+    return res.status(400).json({
+        error: "Conversation contains invalid messages."
+    });
+}
+
+const totalCharacters = messages.reduce(
+    (total, message) => total + message.content.length,
+    0
+);
+
+if (totalCharacters > 200000) {
+    return res.status(400).json({
+        error: "Conversation is too large to process."
+    });
+}
     try {
         const result = await pool.query(
             `SELECT provider, model, endpoint,
@@ -310,6 +336,25 @@ app.post("/api/chat", async (req, res) => {
                 error: "Please configure a valid model ID for this API key."
             });
         }
+        const estimatedInputTokens =
+    estimateConversationTokens(messages, provider, model);
+    const contextBudget =
+    calculateContextBudget(messages, provider, model);
+    
+    const messageTokenEstimates = messages.map((message, index) => {
+    const estimate = estimateMessageTokens(
+        message,
+        provider,
+        model
+    );
+
+    return {
+        messageIndex: index,
+        role: message.role,
+        estimatedTokens: estimate?.totalTokens ?? null,
+        source: estimate?.source ?? "unavailable"
+    };
+});
 
         const apiKey = decryptApiKey({
             ciphertext: savedApi.key_ciphertext,
@@ -339,12 +384,10 @@ app.post("/api/chat", async (req, res) => {
             body = {
                 model,
                 max_tokens: 4000,
-                messages: [
-                    {
-                        role: "user",
-                        content: message.trim()
-                    }
-                ]
+               messages: messages.map(message => ({
+                    role: message.role,
+                    content: message.content
+                }))
             };
         } else if (provider === "custom") {
             if (
@@ -390,34 +433,37 @@ app.post("/api/chat", async (req, res) => {
 
             body = {
                 model,
-                messages: [
-                    {
-                        role: "user",
-                        content: message.trim()
-                    }
-                ]
+               messages: messages.map(message => ({
+                role: message.role,
+                content: message.content
+            }))
             };
-        } else {
-            targetUrl = AI_PROVIDERS[provider];
+        }  else {
+    targetUrl = AI_PROVIDERS[provider];
 
-            if (!targetUrl) {
-                return res.status(400).json({
-                    error: "Selected provider is not supported."
-                });
-            }
+    if (!targetUrl) {
+        return res.status(400).json({
+            error: "Selected provider is not supported."
+        });
+    }
 
-            headers["Authorization"] = `Bearer ${apiKey}`;
+    headers["Authorization"] = `Bearer ${apiKey}`;
 
-            body = {
-                model,
-                messages: [
-                    {
-                        role: "user",
-                        content: message.trim()
-                    }
-                ]
-            };
-        }
+    body = {
+        model,
+        messages: messages.map(message => ({
+            role: message.role,
+            content: message.content
+        }))
+    };
+
+    if (
+        provider === "groq" &&
+        model === "openai/gpt-oss-20b"
+    ) {
+        body.max_completion_tokens = 4096;
+    }
+}
 
         const upstream = await fetch(targetUrl, {
             method: "POST",
@@ -458,10 +504,45 @@ app.post("/api/chat", async (req, res) => {
                 error: "The provider returned an empty or unsupported response."
             });
         }
+        
+const actualUsage = normalizeUsage(data?.usage, provider);
+if (
+    actualUsage &&
+    Number.isFinite(estimatedInputTokens) &&
+    Number.isFinite(actualUsage.inputTokens)
+) {
+    recordUsageCalibration(
+        estimatedInputTokens,
+        actualUsage.inputTokens,
+        provider,
+        model
+    );
+}
 
-        return res.json({
-            reply: reply.trim()
-        });
+const calibratedInputEstimate =
+    getCalibratedInputEstimate(
+        estimatedInputTokens,
+        provider,
+        model
+    );
+return res.json({
+    reply: reply.trim(),
+
+  usage: {
+    estimatedInputTokens,
+    messageTokenEstimates,
+    calibratedInputEstimate,
+    contextBudget,
+    actualInputTokens: actualUsage?.inputTokens ?? null,
+    actualOutputTokens: actualUsage?.outputTokens ?? null,
+    actualTotalTokens: actualUsage?.totalTokens ?? null,
+    source: actualUsage ? "provider" : "unavailable"
+},
+
+    model: data.model || model
+});
+
+       
 
     } catch (error) {
         console.error("AI chat request failed:", error.message);
@@ -479,6 +560,7 @@ app.post("/api/chat", async (req, res) => {
             error: "Could not complete the AI request."
         });
     }
+
 });
 
 /* ============================================
