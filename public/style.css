@@ -3488,7 +3488,7 @@ body {
 /* LAYER 3: Title and Body Text with z-index: 3 */
 .guide-card-header h3 {
     margin: 0 !important;
-    font-size: 15.5px !important;
+    font-size: 21px !important;
     font-weight: 700 !important;
     color: #ffffff !important;
     position: relative !important;
