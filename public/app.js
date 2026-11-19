@@ -510,6 +510,7 @@ inputContainer?.addEventListener("click", () => {
     setMenuState(false);
 });
 
+
 // Real-time welcome visibility: stays until user types something, and reappears when untyped!
 function updateWelcomeVisibility() {
     if (!welcome) return;
@@ -611,11 +612,21 @@ async function sendMessage() {
 
         const loadingMessage = createQuantumThinkingMessage();
         
-        const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ apiId: activeApi.id, message: text })
-        });
+        const conversationMessages = currentThread
+    ? currentThread.messages.map(message => ({
+        role: message.role === "ai" ? "assistant" : message.role,
+        content: message.content
+    }))
+    : [{ role: "user", content: text }];
+
+const response = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+        apiId: activeApi.id,
+        messages: conversationMessages
+    })
+});
 
         let data = null;
         try {
@@ -624,7 +635,7 @@ async function sendMessage() {
             console.error("Could not read chat response:", jsonError);
         }
 
-        loadingMessage.remove();
+        if (loadingMessage && typeof loadingMessage.stop === "function") { loadingMessage.stop(); } else if (loadingMessage) { loadingMessage.remove(); }
 
         if (!response.ok) {
             console.error("Chat request failed:", response.status, data);
