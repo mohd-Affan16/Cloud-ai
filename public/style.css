@@ -3212,70 +3212,7 @@ body {
     color: rgba(255, 255, 255, 0.6) !important;
 }
 
-/* Custom Animated Cursor Elements */
-#customCursorCanvas {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    z-index: 999997;
-}
 
-#customCursorDot {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 6px;
-    height: 6px;
-    margin-left: -3px;
-    margin-top: -3px;
-    border-radius: 50%;
-    background: #ffffff;
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.95), 0 0 20px rgba(56, 189, 248, 0.85);
-    pointer-events: none;
-    z-index: 999999;
-    opacity: 0;
-    transition: opacity 0.25s ease, transform 0.12s ease;
-    will-change: transform, opacity;
-}
-
-#customCursorFollower {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 32px;
-    height: 32px;
-    margin-left: -16px;
-    margin-top: -16px;
-    border-radius: 50%;
-    border: 1.5px solid rgba(168, 85, 247, 0.65);
-    background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, rgba(56, 189, 248, 0.05) 60%, transparent 80%);
-    box-shadow: 0 0 16px rgba(168, 85, 247, 0.35);
-    pointer-events: none;
-    z-index: 999998;
-    opacity: 0;
-    transition: opacity 0.3s ease, border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
-    will-change: transform, opacity;
-}
-
-#customCursorFollower.cursor-hover {
-    border-color: rgba(56, 189, 248, 0.9);
-    background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(168, 85, 247, 0.12) 60%, transparent 85%);
-    box-shadow: 0 0 24px rgba(56, 189, 248, 0.6);
-}
-
-#customCursorFollower.cursor-click {
-    border-color: #ec4899;
-    box-shadow: 0 0 20px rgba(236, 72, 153, 0.8);
-}
-
-@media (pointer: coarse) {
-    #customCursorCanvas, #customCursorDot, #customCursorFollower {
-        display: none !important;
-    }
-}
 
 /* =========================================================
    QUANTUM AURORA THINKING ANIMATION (UNIQUE AI REASONING)
@@ -4406,4 +4343,46 @@ body {
         font-size: 23px;
     }
 
+}
+
+/* User Guide SVG Icons */
+.guide-card-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(168, 85, 247, 0.14);
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c084fc;
+    margin-bottom: 14px;
+    flex-shrink: 0;
+}
+
+.guide-card-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: #c084fc;
+}
+
+.guide-shortcuts-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: #ffffff;
+}
+
+.guide-shortcuts-header svg {
+    width: 20px;
+    height: 20px;
+    stroke: #c084fc;
+}
+
+.guide-shortcuts-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
 }
