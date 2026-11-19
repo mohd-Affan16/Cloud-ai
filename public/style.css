@@ -3354,7 +3354,7 @@ body {
 }
 
 /* =========================================================
-   USER GUIDE PAGE STYLES (3-LAYER ARCHITECTURE)
+   USER GUIDE PAGE STYLES (3-LAYER ARCHITECTURE - SINGLE ROW HEADER)
 ========================================================= */
 .guide-wrapper {
     width: min(920px, 100%);
@@ -3401,7 +3401,7 @@ body {
 
 .guide-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 16px;
     margin-bottom: 28px;
 }
@@ -3440,6 +3440,17 @@ body {
     border-color: rgba(168, 85, 247, 0.5) !important;
 }
 
+/* ROW HEADER: Logo/SVG and Title in one horizontal row */
+.guide-card-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 14px !important;
+    margin-bottom: 12px !important;
+    position: relative !important;
+    z-index: 2 !important;
+}
+
 /* LAYER 2: SVG icon with z-index: 2 (cleanly sized 22px) */
 .guide-card-icon {
     position: relative !important;
@@ -3456,7 +3467,7 @@ body {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 0 !important;
     flex-shrink: 0 !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
 }
@@ -3474,22 +3485,25 @@ body {
     display: block !important;
 }
 
-/* LAYER 3: Content or text with z-index: 3 */
-.guide-card-content {
-    position: relative !important;
-    z-index: 3 !important;
-}
-
-.guide-card-content h3 {
-    margin: 0 0 8px !important;
-    font-size: 16px !important;
+/* LAYER 3: Title and Body Text with z-index: 3 */
+.guide-card-header h3 {
+    margin: 0 !important;
+    font-size: 15.5px !important;
     font-weight: 700 !important;
     color: #ffffff !important;
     position: relative !important;
     z-index: 3 !important;
     letter-spacing: -0.2px !important;
+    line-height: 1.35 !important;
 }
 
+.guide-card-body,
+.guide-card-content {
+    position: relative !important;
+    z-index: 3 !important;
+}
+
+.guide-card-body p,
 .guide-card-content p {
     margin: 0 !important;
     font-size: 13.5px !important;
@@ -3499,12 +3513,13 @@ body {
     z-index: 3 !important;
 }
 
+.guide-card-body strong,
 .guide-card-content strong {
     color: #e2d9fc !important;
     font-weight: 600 !important;
 }
 
-/* Shortcuts Section (also using 3-layer architecture) */
+/* Shortcuts Section */
 .guide-shortcuts-section {
     position: relative !important;
     padding: 24px !important;
@@ -3570,14 +3585,6 @@ body {
     color: #c4b5fd !important;
 }
 
-`;
-
-if (sIdx !== -1 && eIdx !== -1) {
-    css = css.slice(0, sIdx) + newGuideCss + '\n' + css.slice(eIdx);
-    fs.writeFileSync(cssPath, css, 'utf8');
-    console.log('Successfully updated public/style.css with 3-layer architecture!');
-} else {
-    console.log('Error: Markers not matched! sIdx:', sIdx, 'eIdx:', eIdx)
 
 /* =====================================
    ABOUT US - TEAM SECTION
