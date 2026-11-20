@@ -215,62 +215,171 @@ function clearChatMessages() {
 /* =========================================================
    CREATE NEW THREAD
 ========================================================= */
-function createNewThread() {
-    const newThread = {
-        id: "thread_" + Date.now(),
-        title: "New Conversation",
-        messages: []
-    };
-    threads.unshift(newThread);
-    activeThreadId = newThread.id;
-    saveThreadsToStorage();
-    clearChatMessages();
-    welcome.classList.remove("hidden");
-    messageInput.value = "";
-    autoResize();
-    renderThreads();
-    sideMenu.classList.remove("open");
-    messageInput.focus();
+
+async function createNewThread() {
+    try {
+        const response = await fetch("/api/threads", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                title: "New Conversation"
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Could not create conversation."
+            );
+        }
+
+        const newThread = {
+            id: data.thread.thread_id,
+            title: data.thread.title,
+            messages: []
+        };
+
+        threads.unshift(newThread);
+        activeThreadId = newThread.id;
+
+        saveThreadsToStorage();
+        clearChatMessages();
+
+        welcome.classList.remove("hidden");
+        messageInput.value = "";
+        autoResize();
+
+        renderThreads();
+        sideMenu.classList.remove("open");
+        messageInput.focus();
+
+    } catch (error) {
+        console.error("Conversation creation failed:", error);
+
+        showPopup(
+            "Conversation Error",
+            error.message || "Could not create a new conversation.",
+            "error"
+        );
+    }
 }
+
 /* =========================================================
    LOAD THREAD
 ========================================================= */
-function loadThread(id) {
+
+async function loadThread(id) {
     const thread = threads.find((item) => item.id === id);
+
     if (!thread) {
         return;
     }
+
     activeThreadId = id;
     saveThreadsToStorage();
     clearChatMessages();
-    if (thread.messages.length === 0) {
-        welcome.classList.remove("hidden");
-    } else {
-        welcome.classList.add("hidden");
-        thread.messages.forEach((message) => {
-            addMessage(message.content, message.role);
+
+    try {
+        const response = await fetch(`/api/threads/${id}`, {
+            method: "GET",
+            credentials: "same-origin"
         });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Could not load conversation messages."
+            );
+        }
+
+        thread.messages = data.thread.messages || [];
+
+        if (thread.messages.length === 0) {
+            welcome.classList.remove("hidden");
+        } else {
+            welcome.classList.add("hidden");
+
+            thread.messages.forEach((message) => {
+                addMessage(
+                    message.content,
+                    message.role,
+                    message.message_id,
+                    message.priority || 0
+                );
+            });
+        }
+
+        renderThreads();
+        sideMenu.classList.remove("open");
+
+    } catch (error) {
+        console.error("Message loading failed:", error);
+
+        showPopup(
+            "Conversation Error",
+            error.message || "Could not load messages.",
+            "error"
+        );
     }
-    renderThreads();
-    sideMenu.classList.remove("open");
 }
+
 /* =========================================================
    DELETE THREAD
 ========================================================= */
-function deleteThread(id, event) {
+/* =========================================================
+   DELETE THREAD PERMANENTLY
+========================================================= */
+
+async function deleteThread(id, event) {
     event.stopPropagation();
-    threads = threads.filter((thread) => thread.id !== id);
-    if (activeThreadId === id) {
-        if (threads.length > 0) {
-            activeThreadId = threads[0].id;
-            loadThread(activeThreadId);
-        } else {
-            createNewThread();
-            return;
+
+    try {
+        // 1. Delete conversation from server
+        const response = await fetch(`/api/threads/${id}`, {
+            method: "DELETE",
+            credentials: "same-origin"
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Could not delete conversation."
+            );
         }
+
+        // 2. Remove conversation from frontend
+        threads = threads.filter((thread) => thread.id !== id);
+
+        // 3. If deleted conversation was active
+        if (activeThreadId === id) {
+            if (threads.length > 0) {
+                activeThreadId = threads[0].id;
+                await loadThread(activeThreadId);
+            } else {
+                await createNewThread();
+                return;
+            }
+        }
+
+        // 4. Update conversation list
+        saveThreadsToStorage();
+        renderThreads();
+
+    } catch (error) {
+        console.error("Conversation deletion failed:", error);
+
+        showPopup(
+            "Deletion Failed",
+            error.message || "Could not delete conversation.",
+            "error"
+        );
     }
-    saveThreadsToStorage();
-    renderThreads();
 }
 /* =========================================================
    RENDER THREADS
@@ -324,7 +433,7 @@ newConversationButton.addEventListener("click", async (event) => {
             return;
         }
 
-        createNewThread();
+        await createNewThread();
     } catch (error) {
         console.error("Authentication check failed:", error);
         showPopup(
@@ -335,25 +444,57 @@ newConversationButton.addEventListener("click", async (event) => {
     }
 });
 
+
 /* =========================================================
-   INITIALIZE CHAT HISTORY
+   INITIALIZE CHAT HISTORY FROM SERVER
 ========================================================= */
-if (threads.length === 0) {
-    createNewThread();
-} else {
-    if (!activeThreadId || !threads.some((thread) => thread.id === activeThreadId)) {
+
+async function initializeChatHistory() {
+    try {
+        const response = await fetch("/api/threads", {
+            method: "GET",
+            credentials: "same-origin"
+        });
+
+        if (!response.ok) {
+            throw new Error("Could not load conversations.");
+        }
+
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error("Conversation loading failed.");
+        }
+
+        threads = data.threads.map((thread) => ({
+            id: thread.thread_id,
+            title: thread.title,
+            messages: []
+        }));
+
+        if (threads.length === 0) {
+            await createNewThread();
+            return;
+        }
+
         activeThreadId = threads[0].id;
+
+        saveThreadsToStorage();
+        await loadThread(activeThreadId);
+
+    } catch (error) {
+        console.error("Chat initialization failed:", error);
+
+        showPopup(
+            "Chat Loading Error",
+            error.message || "Could not load your conversations.",
+            "error"
+        );
     }
-    loadThread(activeThreadId);
 }
-chat.addEventListener("click", () => {
-    sideMenu.classList.remove("open");
-    dismissWelcome();
-});
-inputContainer.addEventListener("click", () => {
-    sideMenu.classList.remove("open");
-    dismissWelcome();
-});
+
+initializeChatHistory();
+
 /* ========================================================= OPEN SETTINGS / THEMES / API ========================================================= */
 menuItems.forEach((item) => {
     item.addEventListener("click", (event) => {
@@ -412,7 +553,9 @@ function dismissWelcome() {
     welcome.classList.add("hidden");
 }
 
+    
 async function saveMessageToServer(conversationId, role, content) {
+
     // 1. Save the message to the selected local folder
     if (LocalConversationStorage.isFolderSelected()) {
         try {
@@ -426,7 +569,7 @@ async function saveMessageToServer(conversationId, role, content) {
             );
 
             console.log("Message saved locally:", localRole);
-        
+
         } catch (error) {
             console.error("Local file save failed:", error);
 
@@ -437,40 +580,44 @@ async function saveMessageToServer(conversationId, role, content) {
                 7000
             );
         }
-
     }
 
-    // 2. Save the message to the existing server storage
+    // 2. Save the message to the new thread storage
     try {
+        const serverRole =
+            role === "ai" ? "assistant" : role;
+
         const response = await fetch(
-            "/api/conversations/messages",
+            `/api/threads/${conversationId}/messages`,
             {
                 method: "POST",
+                credentials: "same-origin",
                 headers: {
                     "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    conversationId,
-                    role,
+                    role: serverRole,
                     content
                 })
             }
         );
 
-        if (!response.ok) {
-            const error = await response.json();
+        const data = await response.json();
 
+        if (!response.ok || !data.success) {
             throw new Error(
-                error.error || "Message could not be saved."
+                data.error || "Message could not be saved."
             );
         }
 
-        return true;
+        return data.message;
+
     } catch (error) {
         console.error("Conversation storage error:", error);
-        return false;
+        return null;
     }
 }
+
 
 /* ========================================================= CHAT ========================================================= */
 //   async function sendMessage() {
@@ -579,28 +726,48 @@ if (!activeApi) {
         /* =========================================
            SHOW USER MESSAGE
         ========================================= */
+        
+        /* =========================================
+           SAVE AND DISPLAY USER MESSAGE
+        ========================================= */
         dismissWelcome();
-        addMessage(text, "user");
+
         messageInput.value = "";
         autoResize();
-        /* =========================================
-           SAVE USER MESSAGE
-        ========================================= */
+
         const currentThread = getActiveThread();
-        if (currentThread) {
-            if (currentThread.messages.length === 0) {
-                currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
-            }
-            currentThread.messages.push({
-                role: "user",
-                content: text
-            });
-            saveThreadsToStorage();
-            renderThreads();
+
+        if (!currentThread) {
+            throw new Error("No active conversation found.");
         }
-        if (currentThread) {
-    await saveMessageToServer(currentThread.id, "user", text);
-}
+
+        if (currentThread.messages.length === 0) {
+            currentThread.title =
+                text.slice(0, 24) + (text.length > 24 ? "..." : "");
+        }
+
+        const savedUserMessage = await saveMessageToServer(
+            currentThread.id,
+            "user",
+            text
+        );
+
+        if (!savedUserMessage) {
+            throw new Error("Your message could not be saved.");
+        }
+
+        currentThread.messages.push(savedUserMessage);
+
+        addMessage(
+            savedUserMessage.content,
+            savedUserMessage.role,
+            savedUserMessage.message_id,
+            savedUserMessage.priority || 0
+        );
+
+        saveThreadsToStorage();
+        renderThreads();
+
         /* =========================================
            SHOW LOADING MESSAGE
         ========================================= */
@@ -718,23 +885,37 @@ if (!activeApi) {
         //     showPopup("Empty Response", "The API responded successfully, but no AI message was returned.", "warning");
         //     return;
         // }
+       
         /* =========================================
-           DISPLAY AI RESPONSE
+           SAVE AND DISPLAY AI RESPONSE
         ========================================= */
-        addMessage(aiResponse, "ai");
-        /* =========================================
-           SAVE AI RESPONSE
-        ========================================= */
-        if (currentThread) {
-            currentThread.messages.push({
-                role: "ai",
-                content: aiResponse
-            });
-            saveThreadsToStorage();
+
+        if (!currentThread) {
+            throw new Error("No active conversation found.");
         }
-        if (currentThread) {
-    await saveMessageToServer(currentThread.id, "assistant", aiResponse);
-}
+
+        const savedAIMessage = await saveMessageToServer(
+            currentThread.id,
+            "assistant",
+            aiResponse
+        );
+
+        if (!savedAIMessage) {
+            throw new Error("AI response could not be saved.");
+        }
+
+        currentThread.messages.push(savedAIMessage);
+
+        addMessage(
+            savedAIMessage.content,
+            savedAIMessage.role,
+            savedAIMessage.message_id,
+            savedAIMessage.priority || 0
+        );
+
+        saveThreadsToStorage();
+        renderThreads();
+
     } catch (error) {
         /* =========================================
        UNEXPECTED ERROR
@@ -747,51 +928,219 @@ if (!activeApi) {
         );
     }
 }
-function addMessage(text, type) {
+function addMessage(text, type, messageId, priority = 0) {
     const message = document.createElement("div");
     message.classList.add("message", type);
-    /* =====================================================
+
+    message.dataset.messageId = messageId || "";
+    message.dataset.priority = priority;
+
+    /* =========================================
        MESSAGE CONTENT
-    ===================================================== */
+    ========================================= */
+
     const messageText = document.createElement("div");
     messageText.classList.add("message-text");
     messageText.textContent = text;
-    /* =====================================================
+
+    /* =========================================
        STAR BUTTON
-       Available for both user and AI messages.
-    ===================================================== */
+    ========================================= */
+
     const starButton = document.createElement("button");
     starButton.classList.add("message-star");
     starButton.type = "button";
-    starButton.setAttribute("aria-label", "Star message");
-    starButton.setAttribute("title", "Star message");
-    starButton.innerHTML = "☆";
-    /* =====================================================
-       STAR TOGGLE
-    ===================================================== */
-    starButton.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const starred = message.classList.toggle("starred");
-        if (starred) {
-            starButton.innerHTML = "★";
-            starButton.setAttribute("aria-label", "Unstar message");
-            starButton.setAttribute("title", "Unstar message");
+
+    const starSymbols = ["\u2606", "\u2605", "\u2605\u2605", "\u2605\u2605\u2605"];
+
+    function updateStarDisplay(currentPriority) {
+        starButton.textContent = starSymbols[currentPriority];
+        starButton.setAttribute(
+            "aria-label",
+            `Message priority: ${currentPriority} star${currentPriority === 1 ? "" : "s"}`
+        );
+        starButton.setAttribute(
+            "title",
+            `Priority ${currentPriority} — Click to change`
+        );
+
+        message.dataset.priority = currentPriority;
+
+        if (currentPriority === 0) {
+            message.classList.remove("starred");
         } else {
-            starButton.innerHTML = "☆";
-            starButton.setAttribute("aria-label", "Star message");
-            starButton.setAttribute("title", "Star message");
+            message.classList.add("starred");
+        }
+    }
+
+    updateStarDisplay(priority);
+
+    /* =========================================
+       DISABLE STAR FOR UNSAVED MESSAGES
+    ========================================= */
+
+    if (!messageId) {
+        starButton.disabled = true;
+        starButton.title = "Save message before assigning priority";
+    }
+
+    /* =========================================
+       CYCLE STAR PRIORITY
+       0 → 1 → 2 → 3 → 0
+    ========================================= */
+
+    starButton.addEventListener("click", async (event) => {
+        event.stopPropagation();
+
+        if (!messageId || starButton.disabled) {
+            return;
+        }
+
+        const currentPriority = Number(message.dataset.priority);
+        const nextPriority = (currentPriority + 1) % 4;
+
+        starButton.disabled = true;
+
+        try {
+            const response = await fetch(
+                `/api/threads/${activeThreadId}/messages/${messageId}/priority`,
+                {
+                    method: "PATCH",
+                    credentials: "same-origin",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        priority: nextPriority
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.error || "Could not update message priority."
+                );
+            }
+
+            /* Update UI only after server confirms */
+            updateStarDisplay(data.message.priority);
+
+        } catch (error) {
+            console.error("Star priority update failed:", error);
+
+            showPopup(
+                "Star Priority Error",
+                error.message || "Could not update star priority.",
+                "warning"
+            );
+
+        } finally {
+            starButton.disabled = false;
         }
     });
-    /* =====================================================
-       ADD CONTENT + STAR
-    ===================================================== */
+
+       /* =========================================
+       DELETE MESSAGE BUTTON
+    ========================================= */
+
+    const deleteButton = document.createElement("button");
+    deleteButton.classList.add("message-delete");
+    deleteButton.type = "button";
+    deleteButton.textContent = "\u00D7";
+    deleteButton.title = "Delete message";
+    deleteButton.setAttribute("aria-label", "Delete message");
+
+    if (!messageId) {
+        deleteButton.disabled = true;
+        deleteButton.title = "Save message before deleting";
+    }
+
+    deleteButton.addEventListener("click", async (event) => {
+        event.stopPropagation();
+
+        if (!messageId || deleteButton.disabled) {
+            return;
+        }
+
+        const confirmed = window.confirm(
+            "Are you sure you want to delete this message?"
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        deleteButton.disabled = true;
+
+        try {
+            const response = await fetch(
+                `/api/threads/${activeThreadId}/messages/${messageId}`,
+                {
+                    method: "DELETE",
+                    credentials: "same-origin"
+                }
+            );
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.error || "Could not delete message."
+                );
+            }
+
+            // Remove from frontend message list
+            const currentThread = getActiveThread();
+
+            if (currentThread) {
+                currentThread.messages =
+                    currentThread.messages.filter(
+                        (item) => item.message_id !== messageId
+                    );
+            }
+
+            // Remove message from chat UI
+            message.remove();
+
+            saveThreadsToStorage();
+            renderThreads();
+
+            showPopup(
+                "Message Deleted",
+                "Message deleted successfully.",
+                "success"
+            );
+
+        } catch (error) {
+            console.error("Message deletion failed:", error);
+
+            showPopup(
+                "Deletion Failed",
+                error.message || "Could not delete message.",
+                "error"
+            );
+
+        } finally {
+            deleteButton.disabled = false;
+        }
+    });
+
+    /* =========================================
+       ADD MESSAGE TO CHAT
+    ========================================= */
+
     message.appendChild(messageText);
     message.appendChild(starButton);
+    message.appendChild(deleteButton);
     chat.appendChild(message);
+
     chat.scrollTo({
         top: chat.scrollHeight,
         behavior: "smooth"
     });
+
     return message;
 }
 sendButton.addEventListener("click", sendMessage);
