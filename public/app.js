@@ -252,6 +252,7 @@ function createNewThread() {
     threads.unshift(newThread);
     activeThreadId = newThread.id;
     saveThreadsToStorage();
+    MigrationManager.setConversation(newThread.id);
     clearChatMessages();
     welcome?.classList.remove("hidden");
     if (messageInput) messageInput.value = "";
@@ -266,6 +267,7 @@ function loadThread(id) {
     if (!thread) return;
     activeThreadId = id;
     saveThreadsToStorage();
+    MigrationManager.setConversation(id);
     clearChatMessages();
     if (thread.messages.length === 0) {
         welcome?.classList.remove("hidden");
@@ -486,7 +488,15 @@ const response = await fetch("/api/chat", {
             showPopup("Chat Error", errorMessage, "error");
             return;
         }
+      // Check context usage for the conversation that sent this request.
+const contextUsage = data?.usage?.contextBudget?.usagePercent;
 
+if (Number.isFinite(contextUsage)) {
+    window.MigrationManager?.checkUsageForConversation(
+        currentThread?.id,
+        contextUsage
+    );
+}
         const aiResponse = data?.reply;
         if (typeof aiResponse !== "string" || !aiResponse.trim()) {
             showPopup("Empty Response", "The server did not return an AI message.", "warning");
