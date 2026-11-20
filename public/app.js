@@ -242,79 +242,6 @@ function clearChatMessages() {
         message.remove();
     });
 }
-/* =========================================================
-   CREATE NEW THREAD
-
-async function createNewThread() {
-    try {
-        const response = await fetch("/api/threads", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                title: "New Conversation"
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.error || "Could not create conversation."
-            );
-        }
-
-        const newThread = {
-            id: data.thread.thread_id,
-            title: data.thread.title,
-            messages: []
-        };
-
-        threads.unshift(newThread);
-        activeThreadId = newThread.id;
-
-        saveThreadsToStorage();
-        clearChatMessages();
-
-        welcome.classList.remove("hidden");
-        messageInput.value = "";
-        autoResize();
-
-        renderThreads();
-        sideMenu.classList.remove("open");
-        messageInput.focus();
-
-    } catch (error) {
-        console.error("Conversation creation failed:", error);
-
-        showPopup(
-            "Conversation Error",
-            error.message || "Could not create a new conversation.",
-            "error"
-        );
-    }
-}
-
-/* =========================================================
-   LOAD THREAD
-
-async function loadThread(id) {
-    const thread = threads.find((item) => item.id === id);
-
-    if (!thread) {
-        return;
-    }
-
-    activeThreadId = id;
-    saveThreadsToStorage();
-    clearChatMessages();
-
-    try {
-        const response = await fetch(`/api/threads/${id}`, {
-            method: "GET",
-            credentials: "same-origin"
 
 function createNewThread() {
     const newThread = {
@@ -349,101 +276,25 @@ function loadThread(id) {
         thread.messages.forEach((message) => {
             addMessage(message.content, message.role);
         });
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.error || "Could not load conversation messages."
-            );
-        }
-
-        thread.messages = data.thread.messages || [];
-
-        if (thread.messages.length === 0) {
-            welcome.classList.remove("hidden");
-        } else {
-            welcome.classList.add("hidden");
-
-            thread.messages.forEach((message) => {
-                addMessage(
-                    message.content,
-                    message.role,
-                    message.message_id,
-                    message.priority || 0
-                );
-            });
-        }
-
-        renderThreads();
-        sideMenu.classList.remove("open");
-
-    } catch (error) {
-        console.error("Message loading failed:", error);
-
-        showPopup(
-            "Conversation Error",
-            error.message || "Could not load messages.",
-            "error"
-        );
     }
-}
-
-/* =========================================================
-   DELETE THREAD
-/* =========================================================
-   DELETE THREAD PERMANENTLY
-
-async function deleteThread(id, event) {
     renderThreads();
     sideMenu?.classList.remove("open");
 }
 
 function deleteThread(id, event) {
     event.stopPropagation();
-
-    try {
-        // 1. Delete conversation from server
-        const response = await fetch(`/api/threads/${id}`, {
-            method: "DELETE",
-            credentials: "same-origin"
-        });
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.error || "Could not delete conversation."
-            );
+    threads = threads.filter((thread) => thread.id !== id);
+    if (activeThreadId === id) {
+        if (threads.length > 0) {
+            activeThreadId = threads[0].id;
+            loadThread(activeThreadId);
+        } else {
+            createNewThread();
+            return;
         }
-
-        // 2. Remove conversation from frontend
-        threads = threads.filter((thread) => thread.id !== id);
-
-        // 3. If deleted conversation was active
-        if (activeThreadId === id) {
-            if (threads.length > 0) {
-                activeThreadId = threads[0].id;
-                await loadThread(activeThreadId);
-            } else {
-                await createNewThread();
-                return;
-            }
-        }
-
-        // 4. Update conversation list
-        saveThreadsToStorage();
-        renderThreads();
-
-    } catch (error) {
-        console.error("Conversation deletion failed:", error);
-
-        showPopup(
-            "Deletion Failed",
-            error.message || "Could not delete conversation.",
-            "error"
-        );
     }
+    saveThreadsToStorage();
+    renderThreads();
 }
 
 function renderThreads() {
@@ -474,8 +325,6 @@ newConversationButton?.addEventListener("click", async (event) => {
             showPopup("Login Required", "Please log in with Google to start a new conversation.", "warning");
             return;
         }
-
-        await createNewThread();
         createNewThread();
     } catch (error) {
         console.error("Authentication check failed:", error);
@@ -483,72 +332,15 @@ newConversationButton?.addEventListener("click", async (event) => {
     }
 });
 
-
-/* =========================================================
-   INITIALIZE CHAT HISTORY FROM SERVER
-
-async function initializeChatHistory() {
-    try {
-        const response = await fetch("/api/threads", {
-            method: "GET",
-            credentials: "same-origin"
-        });
-
-        if (!response.ok) {
-            throw new Error("Could not load conversations.");
-        }
-
-        const data = await response.json();
-
-        if (!data.success) {
-            throw new Error("Conversation loading failed.");
-        }
-
-        threads = data.threads.map((thread) => ({
-            id: thread.thread_id,
-            title: thread.title,
-            messages: []
-        }));
-
-        if (threads.length === 0) {
-            await createNewThread();
-            return;
-        }
-
 if (threads.length === 0) {
     createNewThread();
 } else {
     if (!activeThreadId || !threads.some((thread) => thread.id === activeThreadId)) {
         activeThreadId = threads[0].id;
-
-        saveThreadsToStorage();
-        await loadThread(activeThreadId);
-
-    } catch (error) {
-        console.error("Chat initialization failed:", error);
-
-        showPopup(
-            "Chat Loading Error",
-            error.message || "Could not load your conversations.",
-            "error"
-        );
     }
+    loadThread(activeThreadId);
 }
 
-initializeChatHistory();
-
-/* ========================================================= OPEN SETTINGS / THEMES / API ========================================================= */
-menuItems.forEach((item) => {
-    item.addEventListener("click", (event) => {
-        event.stopPropagation();
-        const pageId = item.dataset.page;
-        openPage(pageId);
-    });
-});
-
-/* SETTINGS PAGE NAVIGATION */
-document.addEventListener("click", (event) => {
-    const item = event.target.closest(".settings-navigation-item");
 chat?.addEventListener("click", () => {
     sideMenu?.classList.remove("open");
     dismissWelcome();
@@ -595,23 +387,7 @@ function dismissWelcome() {
     welcome.classList.add("hidden");
 }
 
-    
 async function saveMessageToServer(conversationId, role, content) {
-
-    // 1. Save the message to the selected local folder
-    if (LocalConversationStorage.isFolderSelected()) {
-        try {
-            const localRole =
-                role === "ai" ? "assistant" : role;
-
-            await LocalConversationStorage.saveMessage(
-                conversationId,
-                localRole,
-                content
-            );
-
-            console.log("Message saved locally:", localRole);
-
     if (LocalConversationStorage?.isFolderSelected()) {
         try {
             const localRole = role === "ai" ? "assistant" : role;
@@ -621,37 +397,6 @@ async function saveMessageToServer(conversationId, role, content) {
             showPopup("Local Archive Save Failed", "This message may not be saved in your selected folder.", "error", 7000);
         }
     }
-
-    // 2. Save the message to the new thread storage
-    try {
-        const serverRole =
-            role === "ai" ? "assistant" : role;
-
-        const response = await fetch(
-            `/api/threads/${conversationId}/messages`,
-            {
-                method: "POST",
-                credentials: "same-origin",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    role: serverRole,
-                    content
-                })
-            }
-        );
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.error || "Message could not be saved."
-            );
-        }
-
-        return data.message;
-
     try {
         const response = await fetch("/api/conversations/messages", {
             method: "POST",
@@ -665,31 +410,9 @@ async function saveMessageToServer(conversationId, role, content) {
         return true;
     } catch (error) {
         console.error("Conversation storage error:", error);
-        return null;
+        return false;
     }
 }
-
-
-/* ========================================================= CHAT ========================================================= */
-//   async function sendMessage() {
-//     try {
-//         =========================================
-//            GET MESSAGE
-//         ========================================= 
-//         const text = messageInput.value.trim();
-//         if (!text) {
-//             showPopup("Empty Message", "Please enter a message before sending.", "warning");
-//             return;
-//         }
-//          =========================================
-//            GET ACTIVE API
-//         ========================================= 
-//         const activeApi = getActiveApi();
-//         if (!activeApi) {
-//             showPopup("No API Selected", "Please add an API and select it before sending a message.", "warning");
-//             return;
-//         }  
-
 /* ========================================================= SECURE ENGINE CHAT SYSTEM ========================================================= */
 async function sendMessage() {
     try {
@@ -716,87 +439,12 @@ async function sendMessage() {
             return;
         }
 
-        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x
-        //  =========================================
-        //    GET API KEY
-        // ========================================= 
-        // const apiKey = apiSecrets.get(activeApi.id);
-        // if (!apiKey) {
-        //     showPopup(
-        //         "API Key Missing",
-        //         `The API key for "${activeApi.name}" is not available. Please edit this API and enter the key again.`,
-        //         "warning"
-        //     );
-        //     return;
-        // }
-        //  =========================================
-        //    GET PROVIDER CONFIG
-        // ========================================= 
-        // const providerConfig = getProviderConfig(activeApi.provider);
-        // if (!providerConfig) {
-        //     showPopup("Provider Error", `The configuration for "${activeApi.provider}" could not be found.`, "error");
-        //     return;
-        // }
-        // const endpoint = providerConfig.endpoint;
-        // const model = activeApi.model || providerConfig.model;
-        // if (!endpoint || !model) {
-        //     showPopup(
-        //         "Configuration Error",
-        //         "The selected API is missing its endpoint or model configuration.",
-        //         "error"
-        //     );
-        //     return;
-        // }
-        //x-x-x-x-x-x-xx--x-x-x-x-x-x-x-x-x-x-x--x-x-x-x-x-x-x--xx-x-x-xx--x-x-x-x--x-x-x-x-x-x-x--x-x-x-x-x-x-x-x-x--xx--x-x--x-x-x-x-x-x by leader 17 oct 
-        /* =========================================
-           SHOW USER MESSAGE
-        ========================================= */
-        
-        /* =========================================
-           SAVE AND DISPLAY USER MESSAGE
-        ========================================= */
         dismissWelcome();
-
+        addMessage(text, "user");
         messageInput.value = "";
         autoResize();
 
         const currentThread = getActiveThread();
-
-        if (!currentThread) {
-            throw new Error("No active conversation found.");
-        }
-
-        if (currentThread.messages.length === 0) {
-            currentThread.title =
-                text.slice(0, 24) + (text.length > 24 ? "..." : "");
-        }
-
-        const savedUserMessage = await saveMessageToServer(
-            currentThread.id,
-            "user",
-            text
-        );
-
-        if (!savedUserMessage) {
-            throw new Error("Your message could not be saved.");
-        }
-
-        currentThread.messages.push(savedUserMessage);
-
-        addMessage(
-            savedUserMessage.content,
-            savedUserMessage.role,
-            savedUserMessage.message_id,
-            savedUserMessage.priority || 0
-        );
-
-        saveThreadsToStorage();
-        renderThreads();
-
-        /* =========================================
-           SHOW LOADING MESSAGE
-        ========================================= */
-        const loadingMessage = addMessage("Thinking...", "ai");
         if (currentThread) {
             if (currentThread.messages.length === 0) {
                 currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
@@ -855,70 +503,6 @@ if (Number.isFinite(contextUsage)) {
             return;
         }
 
-        
-        // =========================================
-        //    READ RESPONSE
-        // ========================================= 
-        // let data = null;
-        // try {
-        //     data = await response.json();
-        // } catch (jsonError) {
-        //     console.error("Could not read API response:", jsonError);
-        // }
-        /* =========================================
-           REMOVE LOADING
-        ========================================= */
-        loadingMessage.remove();
-        /* =========================================
-           HANDLE API ERROR
-        ========================================= */
-        if (!response.ok) {
-            console.error("API error:", data);
-            const errorMessage =
-                data?.error?.message || data?.error || `The API returned an error (${response.status}).`;
-            showPopup("API Error", errorMessage, "error");
-            return;
-        }
-
-        //  =========================================
-        //    GET AI RESPONSE
-        // ========================================= 
-        // const aiResponse = data?.choices?.[0]?.message?.content;
-        // if (!aiResponse) {
-        //     showPopup("Empty Response", "The API responded successfully, but no AI message was returned.", "warning");
-        //     return;
-        // }
-       
-        /* =========================================
-           SAVE AND DISPLAY AI RESPONSE
-        ========================================= */
-
-        if (!currentThread) {
-            throw new Error("No active conversation found.");
-        }
-
-        const savedAIMessage = await saveMessageToServer(
-            currentThread.id,
-            "assistant",
-            aiResponse
-        );
-
-        if (!savedAIMessage) {
-            throw new Error("AI response could not be saved.");
-        }
-
-        currentThread.messages.push(savedAIMessage);
-
-        addMessage(
-            savedAIMessage.content,
-            savedAIMessage.role,
-            savedAIMessage.message_id,
-            savedAIMessage.priority || 0
-        );
-
-        saveThreadsToStorage();
-        renderThreads();
-
         addMessage(aiResponse, "ai");
 
         if (currentThread) {
@@ -931,46 +515,6 @@ if (Number.isFinite(contextUsage)) {
         showPopup("Something Went Wrong", error?.message || "The message could not be sent. Check configurations.", "error");
     }
 }
-function addMessage(text, type, messageId, priority = 0) {
-    const message = document.createElement("div");
-    message.classList.add("message", type);
-
-    message.dataset.messageId = messageId || "";
-    message.dataset.priority = priority;
-
-    /* =========================================
-       MESSAGE CONTENT
-    ========================================= */
-
-    const messageText = document.createElement("div");
-    messageText.classList.add("message-text");
-    messageText.textContent = text;
-
-    /* =========================================
-       STAR BUTTON
-    ========================================= */
-
-    const starButton = document.createElement("button");
-    starButton.classList.add("message-star");
-    starButton.type = "button";
-
-    const starSymbols = ["\u2606", "\u2605", "\u2605\u2605", "\u2605\u2605\u2605"];
-
-    function updateStarDisplay(currentPriority) {
-        starButton.textContent = starSymbols[currentPriority];
-        starButton.setAttribute(
-            "aria-label",
-            `Message priority: ${currentPriority} star${currentPriority === 1 ? "" : "s"}`
-        );
-        starButton.setAttribute(
-            "title",
-            `Priority ${currentPriority} — Click to change`
-        );
-
-        message.dataset.priority = currentPriority;
-
-        if (currentPriority === 0) {
-            message.classList.remove("starred");
 
 function addMessage(text, type) {
     const message = document.createElement("div");
@@ -992,178 +536,11 @@ function addMessage(text, type) {
             starButton.setAttribute("aria-label", "Unstar message");
             starButton.setAttribute("title", "Unstar message");
         } else {
-            message.classList.add("starred");
-        }
-    }
-
-    updateStarDisplay(priority);
-
-    /* =========================================
-       DISABLE STAR FOR UNSAVED MESSAGES
-    ========================================= */
-
-    if (!messageId) {
-        starButton.disabled = true;
-        starButton.title = "Save message before assigning priority";
-    }
-
-    /* =========================================
-       CYCLE STAR PRIORITY
-       0 → 1 → 2 → 3 → 0
-    ========================================= */
-
-    starButton.addEventListener("click", async (event) => {
-        event.stopPropagation();
-
-        if (!messageId || starButton.disabled) {
-            return;
-        }
-
-        const currentPriority = Number(message.dataset.priority);
-        const nextPriority = (currentPriority + 1) % 4;
-
-        starButton.disabled = true;
-
-        try {
-            const response = await fetch(
-                `/api/threads/${activeThreadId}/messages/${messageId}/priority`,
-                {
-                    method: "PATCH",
-                    credentials: "same-origin",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        priority: nextPriority
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.error || "Could not update message priority."
-                );
-            }
-
-            /* Update UI only after server confirms */
-            updateStarDisplay(data.message.priority);
-
-        } catch (error) {
-            console.error("Star priority update failed:", error);
-
-            showPopup(
-                "Star Priority Error",
-                error.message || "Could not update star priority.",
-                "warning"
-            );
-
-        } finally {
-            starButton.disabled = false;
+            starButton.innerHTML = "☆";
+            starButton.setAttribute("aria-label", "Star message");
+            starButton.setAttribute("title", "Star message");
         }
     });
-
-       /* =========================================
-       DELETE MESSAGE BUTTON
-    ========================================= */
-
-    const deleteButton = document.createElement("button");
-    deleteButton.classList.add("message-delete");
-    deleteButton.type = "button";
-    deleteButton.textContent = "\u00D7";
-    deleteButton.title = "Delete message";
-    deleteButton.setAttribute("aria-label", "Delete message");
-
-    if (!messageId) {
-        deleteButton.disabled = true;
-        deleteButton.title = "Save message before deleting";
-    }
-
-    deleteButton.addEventListener("click", async (event) => {
-        event.stopPropagation();
-
-        if (!messageId || deleteButton.disabled) {
-            return;
-        }
-
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this message?"
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        deleteButton.disabled = true;
-
-        try {
-            const response = await fetch(
-                `/api/threads/${activeThreadId}/messages/${messageId}`,
-                {
-                    method: "DELETE",
-                    credentials: "same-origin"
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.error || "Could not delete message."
-                );
-            }
-
-            // Remove from frontend message list
-            const currentThread = getActiveThread();
-
-            if (currentThread) {
-                currentThread.messages =
-                    currentThread.messages.filter(
-                        (item) => item.message_id !== messageId
-                    );
-            }
-
-            // Remove message from chat UI
-            message.remove();
-
-            saveThreadsToStorage();
-            renderThreads();
-
-            showPopup(
-                "Message Deleted",
-                "Message deleted successfully.",
-                "success"
-            );
-
-        } catch (error) {
-            console.error("Message deletion failed:", error);
-
-            showPopup(
-                "Deletion Failed",
-                error.message || "Could not delete message.",
-                "error"
-            );
-
-        } finally {
-            deleteButton.disabled = false;
-        }
-    });
-
-    /* =========================================
-       ADD MESSAGE TO CHAT
-    ========================================= */
-
-    message.appendChild(messageText);
-    message.appendChild(starButton);
-    message.appendChild(deleteButton);
-    chat.appendChild(message);
-
-    chat.scrollTo({
-        top: chat.scrollHeight,
-        behavior: "smooth"
-    });
-
     message.appendChild(messageText);
     message.appendChild(starButton);
     chat?.appendChild(message);
