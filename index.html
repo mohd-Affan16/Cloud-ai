@@ -237,8 +237,155 @@
                         </span>
                         <span class="settings-navigation-arrow"> → </span>
                     </button>
+                    <button class="settings-navigation-item" data-page="aboutPage" type="button">
+                        <span class="settings-navigation-left">
+                            <span class="menu-item-icon">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path
+                                        d="M12 3C7 3 3 6.4 3 10.8C3 14.2 5.7 16 8.2 16H10C11.1 16 12 16.9 12 18C12 19.7 13.3 21 15 21C18.3 21 21 16.5 21 11.5C21 6.8 17 3 12 3Z"
+                                    ></path>
+                                    <circle cx="7.5" cy="10" r="0.8"></circle>
+                                    <circle cx="10" cy="7" r="0.8"></circle>
+                                    <circle cx="14" cy="7" r="0.8"></circle>
+                                    <circle cx="17" cy="10" r="0.8"></circle>
+                                </svg>
+                            </span>
+                            <!-- <span>
+                Themes
+            </span> -->
+                            <span class="settings-navigation-text">
+                                <strong>About Us</strong>
+                                <small>Learn about the project and our team</small>
+                            </span>
+                        </span>
+                        <span class="settings-navigation-arrow"> → </span>
+                    </button>
                    
                 </div>
+</section>
+
+<!-- =====================================================
+     ABOUT US PAGE
+====================================================== -->
+<section id="aboutPage" class="app-page">
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h1>About Us</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+
+    <!-- Project Description -->
+    <div class="glass-card about-project-card">
+        <div class="about-project-content">
+            <h2>Project Description</h2>
+            <p>
+                Cloud Hybrid AI is a project designed to provide users
+                with a unified interface for interacting with AI services.
+                It includes chat functionality, API provider management,
+                customizable themes, and local conversation storage.
+            </p>
+        </div>
+    </div>
+
+    <!-- Team Section -->
+    <!-- Team Section -->
+<div class="about-team-section">
+
+    <h2>Meet the Team</h2>
+
+    <div class="about-team-grid">
+
+        <!-- Project Leader -->
+        <div class="about-team-card">
+            <div class="team-info">
+                <h3>Mohammed Affan Ahamed</h3>
+
+                <span class="team-role leader-role">
+                    <svg class="role-icon" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <path d="M2 7l5 4 5-7 5 7 5-4-2 12H4L2 7z"/>
+                        <path d="M4 16h16"/>
+                    </svg>
+                    Project Leader
+                </span>
+
+                <p>Leads the project and coordinates the team's work.</p>
+            </div>
+
+            <span class="team-arrow">→</span>
+        </div>
+
+        <!-- Iyaaz -->
+        <div class="about-team-card">
+            <div class="team-info">
+                <h3>Iyaaz Muhammad Shabaz</h3>
+
+                <span class="team-role member-role">
+                    <svg class="role-icon" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M5 21v-2a7 7 0 0 1 14 0v2"/>
+                    </svg>
+                    Team Member
+                </span>
+
+                <p>Details to be provided.</p>
+            </div>
+
+            <span class="team-arrow">→</span>
+        </div>
+
+        <!-- Joston -->
+        <div class="about-team-card">
+            <div class="team-info">
+                <h3>Joston Joseph Joy</h3>
+
+                <span class="team-role member-role">
+                    <svg class="role-icon" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M5 21v-2a7 7 0 0 1 14 0v2"/>
+                    </svg>
+                    Team Member
+                </span>
+
+                <p>Details to be provided.</p>
+            </div>
+
+            <span class="team-arrow">→</span>
+        </div>
+
+        <!-- Fouzan -->
+        <div class="about-team-card">
+            <div class="team-info">
+                <h3>Muhammad Fouzan</h3>
+
+                <span class="team-role member-role">
+                    <svg class="role-icon" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <circle cx="12" cy="8" r="4"/>
+                        <path d="M5 21v-2a7 7 0 0 1 14 0v2"/>
+                    </svg>
+                    Team Member
+                </span>
+
+                <p>Details to be provided.</p>
+            </div>
+
+            <span class="team-arrow">→</span>
+        </div>
+
+    </div>
+</div>
 </section>
 <!-- LOCAL CONVERSATION STORAGE PAGE -->
 
@@ -422,8 +569,7 @@
             </div>
         </section>
         <!-- ===================================================== API PAGE ====================================================== -->
-   
-<section id="apiPage" class="app-page">
+  <section id="apiPage" class="app-page">
     <div class="page-header">
         <h1>API Management</h1>
         <button class="back-button" type="button">←</button>
@@ -435,22 +581,25 @@
 
     <div class="api-content">
 
-        <!-- Saved API cards appear here -->
+        <!-- Saved API cards -->
         <div id="apiList" class="api-list"></div>
 
-         <!-- Full-width Add New Key button -->
-        <div id="apiCreateCard" class="api-card api-create-card" hidden>
+        <!-- Create API form (hidden initially) -->
+        <div id="apiCreateCard" class="api-create-card" hidden>
+
             <div class="api-create-title">Create API</div>
 
-            <label for="apiNameInput">Name</label>
+            <label for="apiNameInput">Model Name</label>
             <input
                 id="apiNameInput"
                 type="text"
-                placeholder="Enter API name"
+                placeholder="Enter model name"
+                maxlength="200"
             />
 
             <label>Provider</label>
             <div id="providerSelectWrapper" class="api-provider-select-wrapper">
+
                 <button
                     id="providerSelectButton"
                     class="api-provider-select-button"
@@ -466,9 +615,27 @@
                     role="listbox"
                 >
                     <button class="provider-option selected" data-value="groq" type="button">Groq</button>
-                    <button class="provider-option" data-value="huggingface" type="button">Hugging Face</button>
                     <button class="provider-option" data-value="openai" type="button">OpenAI</button>
+                    <button class="provider-option" data-value="google" type="button">Google Gemini</button>
+                    <button class="provider-option" data-value="anthropic" type="button">Anthropic</button>
+                    <button class="provider-option" data-value="openrouter" type="button">OpenRouter</button>
+                    <button class="provider-option" data-value="together" type="button">Together AI</button>
+                    <button class="provider-option" data-value="fireworks" type="button">Fireworks AI</button>
+                    <button class="provider-option" data-value="cerebras" type="button">Cerebras</button>
+                    <button class="provider-option" data-value="mistral" type="button">Mistral AI</button>
+                    <button class="provider-option" data-value="deepseek" type="button">DeepSeek</button>
+                    <button class="provider-option" data-value="custom" type="button">Custom Endpoint</button>
                 </div>
+            </div>
+
+            <div id="customEndpointGroup" hidden>
+                <label for="customEndpointInput">Provider Endpoint</label>
+                <input
+                    id="customEndpointInput"
+                    type="url"
+                    placeholder="https://example.com/v1"
+                    autocomplete="url"
+                />
             </div>
 
             <label for="apiKeyInput">API Key</label>
@@ -477,6 +644,7 @@
                 type="password"
                 placeholder="Enter API key"
                 autocomplete="off"
+                maxlength="10000"
             />
 
             <div class="create-api-row">
@@ -487,6 +655,7 @@
                 >
                     Cancel
                 </button>
+
                 <button
                     id="createApiButton"
                     class="api-create-button"
@@ -495,8 +664,11 @@
                     Create
                 </button>
             </div>
+
         </div>
-       
+        <!-- End Create API form -->
+
+        <!-- Add New Key button -->
         <button
             id="addApiKeyButton"
             class="add-api-key-button"
@@ -505,10 +677,6 @@
             <span class="add-api-key-plus">+</span>
             <span>Add New Key</span>
         </button>
-
-        <!-- Create API form, hidden initially -->
-
-        
 
     </div>
 </section>
