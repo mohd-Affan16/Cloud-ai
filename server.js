@@ -10,12 +10,6 @@ const {
 } = require("./tokenManager");
 const pool = require("./db.js");
 const { encryptApiKey, decryptApiKey } = require("./encryption.js");
-
-/* ============================================
-   LOAD USER CONVERSATIONS
-   ============================================ */
-
-
 //x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x-x by leader oct 17
 // ============================================
 // CLOUD AI - EXPRESS SERVER
@@ -27,24 +21,8 @@ const session = require("express-session");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const path = require("path");
-const {
-    getConversationDirectory,
-    appendMessage,
-    initializeAccount,
-    createConversation,
-    getConversation,
-    getAllConversations,
-    renameConversation,
-    archiveConversation,
-    restoreConversation,
-    deleteConversation,
-    appendThreadMessage,
-    getConversationMessages,
-    updateThreadMessage,
-    deleteThreadMessage,
-    updateThreadMessagePriority,
-    cycleThreadMessagePriority
-} = require("./conversationstorage.js");
+const { getConversationDirectory } = require("./conversationstorage.js");
+const { appendMessage } = require("./conversationstorage.js");
 // ============================================
 // CREATE EXPRESS APP
 // ============================================
@@ -107,81 +85,6 @@ passport.deserializeUser((user, done) => {
 // CREATE CONVERSATION FOLDER API
 // ============================================
 app.use(express.json());
-
-/* ============================================
-   LOAD USER CONVERSATIONS
-   ============================================ */
-
-app.get("/api/threads", (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.status(401).json({
-            error: "Please log in first."
-        });
-    }
-
-    try {
-        // Create the account structure if it doesn't exist.
-        initializeAccount(req.user);
-
-        // Load this user's conversations.
-        const threads = getAllConversations(
-            String(req.user.id)
-        );
-
-        return res.json({
-            success: true,
-            threads
-        });
-
-    } catch (error) {
-        console.error("Thread loading failed:", error.message);
-
-        return res.status(500).json({
-            error: "Could not load conversations."
-        });
-    }
-});
-
-/* ============================================
-   CREATE NEW CONVERSATION
-   ============================================ */
-
-app.post("/api/threads", (req, res) => {
-    if (!req.isAuthenticated()) {
-        return res.status(401).json({
-            error: "Please log in first."
-        });
-    }
-
-    const { title } = req.body;
-
-    if (typeof title !== "string" || !title.trim()) {
-        return res.status(400).json({
-            error: "Conversation title is required."
-        });
-    }
-
-    try {
-        initializeAccount(req.user);
-
-        const thread = createConversation(
-            String(req.user.id),
-            title.trim()
-        );
-
-        return res.status(201).json({
-            success: true,
-            thread
-        });
-
-    } catch (error) {
-        console.error("Conversation creation failed:", error.message);
-
-        return res.status(500).json({
-            error: "Could not create conversation."
-        });
-    }
-});
 
 /* ============================================
    API KEY DATABASE ROUTES oct 15 leader
@@ -258,8 +161,6 @@ app.post("/api/keys", async (req, res) => {
         });
     }
 });
-
-
 /* ============================================
    GET ONE CONVERSATION
    ============================================ */

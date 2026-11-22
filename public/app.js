@@ -274,8 +274,10 @@ function loadThread(id) {
     }
 
     activeThreadId = id;
-
     saveThreadsToStorage();
+
+    MigrationManager.setConversation(id);
+
     clearChatMessages();
 
     if (!thread.messages || thread.messages.length === 0) {
@@ -299,12 +301,13 @@ function loadThread(id) {
     }
 
     renderThreads();
-    sideMenu.classList.remove("open");
+    sideMenu?.classList.remove("open");
 }
 
 /* =========================================================
    DELETE THREAD
 ========================================================= */
+
 function deleteThread(id, event) {
     event.stopPropagation();
     threads = threads.filter((thread) => thread.id !== id);
@@ -351,7 +354,6 @@ newConversationButton?.addEventListener("click", async (event) => {
             showPopup("Login Required", "Please log in with Google to start a new conversation.", "warning");
             return;
         }
-
         createNewThread();
     } catch (error) {
         console.error("Authentication check failed:", error);
@@ -395,11 +397,9 @@ function initializeChatHistory() {
 
 initializeChatHistory();
 
-
 /* =========================================================
    CHAT AND INPUT CLICK HANDLERS
 ========================================================= */
-
 chat?.addEventListener("click", () => {
     sideMenu?.classList.remove("open");
     dismissWelcome();
@@ -472,30 +472,9 @@ async function saveMessageToServer(conversationId, role, content) {
 
     } catch (error) {
         console.error("Conversation storage error:", error);
-        return null;
+        return false;
     }
 }
-
-
-/* ========================================================= CHAT ========================================================= */
-//   async function sendMessage() {
-//     try {
-//         =========================================
-//            GET MESSAGE
-//         ========================================= 
-//         const text = messageInput.value.trim();
-//         if (!text) {
-//             showPopup("Empty Message", "Please enter a message before sending.", "warning");
-//             return;
-//         }
-//          =========================================
-//            GET ACTIVE API
-//         ========================================= 
-//         const activeApi = getActiveApi();
-//         if (!activeApi) {
-//             showPopup("No API Selected", "Please add an API and select it before sending a message.", "warning");
-//             return;
-//         }  
 
 /* ========================================================= SECURE ENGINE CHAT SYSTEM ========================================================= */
 
@@ -550,6 +529,7 @@ async function sendMessage() {
             );
             return;
         }
+
 
         // 3. Get active conversation
         const currentThread = getActiveThread();
@@ -642,6 +622,7 @@ async function sendMessage() {
         const aiResponse = data?.reply;
 
         if (typeof aiResponse !== "string" || !aiResponse.trim()) {
+
             throw new Error("The server did not return an AI message.");
         }
 
@@ -683,224 +664,35 @@ async function sendMessage() {
     }
 }
 
-
-function addMessage(text, type, messageId, priority = 0) {
-    const conversationId = activeThreadId;
-
+function addMessage(text, type) {
     const message = document.createElement("div");
     message.classList.add("message", type);
-
-    message.dataset.messageId = messageId || "";
-    message.dataset.priority = priority;
-
-    /* =========================================
-       MESSAGE CONTENT
-    ========================================= */
-
     const messageText = document.createElement("div");
     messageText.classList.add("message-text");
     messageText.textContent = text;
-
-    /* =========================================
-       STAR BUTTON
-    ========================================= */
-
     const starButton = document.createElement("button");
     starButton.classList.add("message-star");
     starButton.type = "button";
-
-    function updateStarDisplay(nextPriority) {
-        const safePriority = Math.max(
-            0,
-            Math.min(3, Number(nextPriority) || 0)
-        );
-
-        message.dataset.priority = String(safePriority);
-
-        starButton.textContent =
-            safePriority === 0 ? "☆" : "★".repeat(safePriority);
-
-        const label = safePriority === 0
-            ? "Star message"
-            : `Message priority ${safePriority}`;
-
-        starButton.setAttribute("aria-label", label);
-        starButton.title = label;
-
-        message.classList.toggle("starred", safePriority > 0);
-    }
-
-    updateStarDisplay(priority);
-
-    if (!messageId) {
-        starButton.disabled = true;
-        starButton.title = "Save message before assigning priority";
-    }
-
-    /* =========================================
-       SERVER-BACKED STAR PRIORITY
-       0 → 1 → 2 → 3 → 0
-    ========================================= */
-
-    starButton.addEventListener("click", async (event) => {
+    starButton.setAttribute("aria-label", "Star message");
+    starButton.setAttribute("title", "Star message");
+    starButton.innerHTML = "☆";
+    starButton.addEventListener("click", (event) => {
         event.stopPropagation();
-
-        if (!messageId || starButton.disabled) {
-            return;
-        }
-
-        const currentPriority = Number(message.dataset.priority);
-        const nextPriority = (currentPriority + 1) % 4;
-
-        starButton.disabled = true;
-
-        try {
-            const response = await fetch(
-                `/api/threads/${conversationId}/messages/${messageId}/priority`,
-                {
-                    method: "PATCH",
-                    credentials: "same-origin",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        priority: nextPriority
-                    })
-                }
-            );
-
-            const data = await response.json();
-
-            if (
-                !response.ok ||
-                !data.success ||
-                !data.message ||
-                data.message.priority === undefined
-            ) {
-                throw new Error(
-                    data.error || "Could not update message priority."
-                );
-            }
-
-            updateStarDisplay(data.message.priority);
-
-        } catch (error) {
-            console.error("Star priority update failed:", error);
-
-            showPopup(
-                "Star Priority Error",
-                error.message || "Could not update star priority.",
-                "warning"
-            );
-
-        } finally {
-            starButton.disabled = false;
+        const starred = message.classList.toggle("starred");
+        if (starred) {
+            starButton.innerHTML = "★";
+            starButton.setAttribute("aria-label", "Unstar message");
+            starButton.setAttribute("title", "Unstar message");
+        } else {
+            starButton.innerHTML = "☆";
+            starButton.setAttribute("aria-label", "Star message");
+            starButton.setAttribute("title", "Star message");
         }
     });
-
-    /* =========================================
-       DELETE MESSAGE BUTTON
-    ========================================= */
-
-    const deleteButton = document.createElement("button");
-    deleteButton.classList.add("message-delete");
-    deleteButton.type = "button";
-    deleteButton.textContent = "\u00D7";
-    deleteButton.title = "Delete message";
-    deleteButton.setAttribute("aria-label", "Delete message");
-
-    if (!messageId) {
-        deleteButton.disabled = true;
-        deleteButton.title = "Save message before deleting";
-    }
-
-    deleteButton.addEventListener("click", async (event) => {
-        event.stopPropagation();
-
-        if (!messageId || deleteButton.disabled) {
-            return;
-        }
-
-        const confirmed = window.confirm(
-            "Are you sure you want to delete this message?"
-        );
-
-        if (!confirmed) {
-            return;
-        }
-
-        deleteButton.disabled = true;
-
-        try {
-            const response = await fetch(
-                `/api/threads/${conversationId}/messages/${messageId}`,
-                {
-                    method: "DELETE",
-                    credentials: "same-origin"
-                }
-            );
-
-            const data = await response.json();
-
-            if (!response.ok || !data.success) {
-                throw new Error(
-                    data.error || "Could not delete message."
-                );
-            }
-
-            // Update the correct conversation
-            const currentThread = threads.find(
-                (thread) => thread.id === conversationId
-            );
-
-            if (currentThread) {
-                currentThread.messages =
-                    currentThread.messages.filter(
-                        (item) =>
-                            String(item.message_id) !== String(messageId)
-                    );
-            }
-
-            message.remove();
-
-            saveThreadsToStorage();
-            renderThreads();
-
-            showPopup(
-                "Message Deleted",
-                "Message deleted successfully.",
-                "success"
-            );
-
-        } catch (error) {
-            console.error("Message deletion failed:", error);
-
-            showPopup(
-                "Deletion Failed",
-                error.message || "Could not delete message.",
-                "error"
-            );
-
-        } finally {
-            deleteButton.disabled = false;
-        }
-    });
-
-    /* =========================================
-       ADD MESSAGE TO CHAT
-    ========================================= */
-
     message.appendChild(messageText);
     message.appendChild(starButton);
-    message.appendChild(deleteButton);
-
-    chat.appendChild(message);
-
-    chat.scrollTo({
-        top: chat.scrollHeight,
-        behavior: "smooth"
-    });
-
+    chat?.appendChild(message);
+    chat?.scrollTo({ top: chat.scrollHeight, behavior: "smooth" });
     return message;
 }
 
