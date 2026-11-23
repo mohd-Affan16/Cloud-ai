@@ -210,6 +210,58 @@ function openPage(pageId) {
     }
     page.classList.add("open");
     inputContainer?.classList.add("page-hidden");
+    if (pageId === "archivePage") loadOriginalConversationArchives();
+}
+
+async function loadOriginalConversationArchives() {
+    const status = document.getElementById("archivePageStatus");
+    const list = document.getElementById("archiveConversationList");
+    if (!list || !status) return;
+    status.textContent = "Loading archived conversations…";
+    list.replaceChildren();
+    try {
+        const response = await fetch("/api/archives", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Could not load archived conversations.");
+        const archives = Array.isArray(data.archives) ? data.archives : [];
+        if (!archives.length) {
+            status.textContent = "No original conversations have been archived yet.";
+            return;
+        }
+        status.textContent = `${archives.length} original conversation${archives.length === 1 ? "" : "s"} archived.`;
+        archives.forEach(archive => {
+            const row = document.createElement("article");
+            row.className = "archive-entry";
+            const details = document.createElement("div");
+            details.className = "archive-entry-details";
+            const title = document.createElement("strong");
+            title.textContent = archive.title || "Original: Conversation";
+            details.append(title);
+            const view = document.createElement("button");
+            view.type = "button";
+            view.className = "storage-action-button archive-view-button";
+            view.textContent = "View JSON";
+            const preview = document.createElement("pre");
+            preview.className = "archive-conversation-preview";
+            preview.hidden = true;
+            view.addEventListener("click", async () => {
+                view.disabled = true;
+                try {
+                    const fileResponse = await fetch(`/api/archives/${encodeURIComponent(archive.id)}`, { credentials: "same-origin", cache: "no-store" });
+                    const fileData = await fileResponse.json().catch(() => ({}));
+                    if (!fileResponse.ok || !Array.isArray(fileData.messages)) throw new Error(fileData.error || "Could not open the archived file.");
+                    preview.textContent = JSON.stringify(fileData.messages, null, 2);
+                    preview.hidden = false;
+                } catch (error) {
+                    status.textContent = error.message || "Could not open the archived file.";
+                } finally { view.disabled = false; }
+            });
+            row.append(details, view, preview);
+            list.appendChild(row);
+        });
+    } catch (error) {
+        status.textContent = error.message || "Could not load archived conversations.";
+    }
 }
 
 backButtons.forEach((button) => {
@@ -224,8 +276,18 @@ function closePages() {
 }
 /* ========================================================= THREAD & CONVERSATION HISTORY ENGINE ========================================================= */
 const threadsList = document.getElementById("threadsList");
+const migrateConversationButton = document.getElementById("migrateConversationButton");
+const compressConversationButton = document.getElementById("compressConversationButton");
+const contextActionStatus = document.getElementById("contextActionStatus");
+const contextTools = document.getElementById("contextTools");
+const contextToolsMenu = document.getElementById("contextToolsMenu");
+const contextUsageButton = document.getElementById("contextUsageButton");
+const contextUsageLabel = document.getElementById("contextUsageLabel");
+const contextUsageRing = document.getElementById("contextUsageRing");
+const COMPRESSION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
 let threads = JSON.parse(localStorage.getItem("cloud_ai_threads") || "[]");
 let activeThreadId = localStorage.getItem("cloud_ai_active_thread") || null;
+let apiEntries = [];
 
 function saveThreadsToStorage() {
     localStorage.setItem("cloud_ai_threads", JSON.stringify(threads));
@@ -277,6 +339,10 @@ function loadThread(id) {
     saveThreadsToStorage();
 
     MigrationManager.setConversation(id);
+    updateCompressionCooldown();
+    loadContextUsage();
+    loadStoredCompression(thread);
+    syncThreadMessagesFromServer(id);
 
     clearChatMessages();
 
@@ -302,6 +368,49 @@ function loadThread(id) {
 
     renderThreads();
     sideMenu?.classList.remove("open");
+}
+
+async function syncThreadMessagesFromServer(threadId) {
+    if (!/^thread_[a-zA-Z0-9_-]+$/.test(String(threadId || ""))) return null;
+    try {
+        const response = await fetch(`/api/threads/${encodeURIComponent(threadId)}`, {
+            credentials: "same-origin",
+            cache: "no-store"
+        });
+        if (!response.ok) return null;
+        const data = await response.json().catch(() => ({}));
+        const remoteMessages = data?.thread?.messages;
+        if (!Array.isArray(remoteMessages) || !remoteMessages.length) return null;
+        const thread = threads.find(item => item.id === threadId);
+        if (!thread) return null;
+        thread.messages = remoteMessages;
+        saveThreadsToStorage();
+        if (activeThreadId === threadId) {
+            clearChatMessages();
+            welcome?.classList.toggle("hidden", remoteMessages.length > 0);
+            remoteMessages.forEach(message => addMessage(message.content, message.role === "assistant" || message.role === "ai" ? "ai" : "user", message.message_id, message.priority || 0));
+            estimateVisibleContextUsage();
+        }
+        return thread;
+    } catch (error) {
+        console.warn("Could not refresh this conversation from saved history:", error.message);
+        return null;
+    }
+}
+
+async function loadStoredCompression(thread) {
+    if (!thread?.id || !/^thread_[a-zA-Z0-9_-]+$/.test(thread.id)) return;
+    try {
+        const response = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/compression`, { credentials: "same-origin", cache: "no-store" });
+        if (response.status === 401 || response.status === 404) return;
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.compression) return;
+        thread.compression = data.compression;
+        saveThreadsToStorage();
+        if (getActiveThread()?.id === thread.id) updateCompressionCooldown();
+    } catch (error) {
+        console.warn("Could not load saved compression context:", error.message);
+    }
 }
 
 /* =========================================================
@@ -416,9 +525,449 @@ function dismissWelcome() {
     welcome.classList.add("hidden");
 }
 
+function setContextActionStatus(message) {
+    if (contextActionStatus) contextActionStatus.textContent = message;
+}
+
+function setContextUsage(usage) {
+    const percent = Number(usage?.contextBudget?.usagePercent);
+    const remaining = Number.isFinite(percent) ? Math.max(0, Math.min(100, 100 - percent)) : null;
+    if (contextUsageLabel) contextUsageLabel.textContent = formatContextRemaining(remaining);
+    if (contextUsageButton) {
+        contextUsageButton.dataset.level = percent >= 95 ? "critical" : percent >= 80 ? "warning" : "normal";
+        contextUsageButton.setAttribute("aria-label", remaining === null
+            ? "Context window usage unavailable; open context tools"
+            : `${formatContextRemaining(remaining)} of the context window remains; open context tools`);
+        if (Number.isFinite(percent)) contextUsageButton.title = `${formatContextRemaining(remaining)} context remaining`;
+    }
+    if (contextUsageRing) {
+        const circumference = 2 * Math.PI * 20;
+        contextUsageRing.style.strokeDasharray = String(circumference);
+        contextUsageRing.style.strokeDashoffset = remaining === null ? String(circumference) : String(circumference * (1 - remaining / 100));
+    }
+    if (remaining !== null && activeThreadId) {
+        localStorage.setItem(`cloud_ai_context_usage_${activeThreadId}`, JSON.stringify({ usagePercent: percent, updatedAt: Date.now() }));
+    }
+}
+
+function estimateVisibleContextUsage() {
+    const thread = getActiveThread();
+    const messages = getPillarSourceMessages(thread || { messages: [] });
+    const estimate = messages.reduce((sum, message) => sum + Math.ceil(message.content.length / 4) + 4, 0);
+    const activeApi = getActiveApi();
+    const model = String(activeApi?.model || "").toLowerCase();
+    const windowSize = model.includes("gpt-oss-20b") ? 131072 : null;
+    if (!windowSize) {
+        if (activeApi?.id) {
+            const fallbackEstimate = estimate + Math.ceil((messageInput?.value?.length || 0) / 4);
+            const fallbackBudget = 32768 - 4096 - Math.ceil(32768 * 0.1);
+            setContextUsage({ contextBudget: { usagePercent: Math.min(100, fallbackEstimate / fallbackBudget * 100) } });
+            if (contextUsageButton) contextUsageButton.title = "Approximate remaining context using a 32k fallback; provider usage replaces this after a reply";
+        } else setContextUsage(null);
+        return;
+    }
+    const inputTokens = estimate + Math.ceil((messageInput?.value?.length || 0) / 4);
+    const inputBudget = windowSize - 4096 - Math.ceil(windowSize * 0.1);
+    setContextUsage({ contextBudget: { usagePercent: Math.min(100, inputTokens / inputBudget * 100) } });
+}
+
+function loadContextUsage() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(`cloud_ai_context_usage_${activeThreadId}`) || "null");
+        if (saved && Date.now() - saved.updatedAt < 24 * 60 * 60 * 1000) {
+            setContextUsage({ contextBudget: { usagePercent: saved.usagePercent } });
+        } else estimateVisibleContextUsage();
+    } catch { estimateVisibleContextUsage(); }
+}
+
+function formatContextRemaining(remaining) {
+    if (remaining === null) return "—";
+    if (remaining >= 99.95) return `${(Math.floor(remaining * 10) / 10).toFixed(1)}%`;
+    if (remaining >= 10) return `${remaining.toFixed(1)}%`;
+    return `${remaining.toFixed(2)}%`;
+}
+
+contextUsageButton?.addEventListener("click", () => {
+    const open = contextTools?.classList.toggle("open") || false;
+    contextUsageButton.setAttribute("aria-expanded", String(open));
+    contextToolsMenu?.setAttribute("aria-hidden", String(!open));
+});
+
+messageInput?.addEventListener("input", estimateVisibleContextUsage);
+
+document.addEventListener("click", event => {
+    if (contextTools && !contextTools.contains(event.target)) {
+        contextTools.classList.remove("open");
+        contextUsageButton?.setAttribute("aria-expanded", "false");
+        contextToolsMenu?.setAttribute("aria-hidden", "true");
+    }
+});
+
+function updateCompressionCooldown() {
+    const thread = getActiveThread();
+    const compressedAt = Number(thread?.compression?.lastSuccessfulAt || 0);
+    const remaining = compressedAt + COMPRESSION_COOLDOWN_MS - Date.now();
+    const coolingDown = remaining > 0;
+    if (compressConversationButton) {
+        compressConversationButton.disabled = coolingDown;
+        compressConversationButton.title = coolingDown
+            ? `Available in ${Math.ceil(remaining / 3600000)} hour(s)`
+            : "Create and save a compact context summary";
+    }
+    if (coolingDown) {
+        const hours = Math.floor(remaining / 3600000);
+        const minutes = Math.ceil((remaining % 3600000) / 60000);
+        setContextActionStatus(`Manual compression available in ${hours}h ${minutes}m.`);
+    } else if (contextActionStatus?.textContent.startsWith("Manual compression available")) {
+        setContextActionStatus("");
+    }
+}
+
+function getPillarSourceMessages(thread) {
+    return (thread.messages || []).map((message, index) => ({ message, index })).filter(({ message }) =>
+        message && ["user", "assistant", "ai"].includes(message.role) &&
+        typeof message.content === "string" && message.content.trim()
+    ).map(({ message, index }) => ({
+        index,
+        role: message.role === "ai" ? "assistant" : message.role,
+        content: message.content,
+        priority: Number.isInteger(message.priority) ? message.priority : 0
+    }));
+}
+
+window.CloudTokenManager = Object.freeze({
+    estimateTokens(text) {
+        if (typeof text !== "string" || !text.trim()) return 0;
+        return Math.ceil(text.length / 4);
+    }
+});
+
+function buildPillarRequest(thread, operation) {
+    const messages = getPillarSourceMessages(thread);
+    if (messages.length < 2) throw new Error("Add at least one user message and one assistant response first.");
+    const activeApi = getActiveApi();
+    if (!activeApi?.id) throw new Error("Select a saved API key before using context tools.");
+
+    const tokenEstimate = messages.reduce((sum, message) =>
+        sum + (window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)) + 4, 0);
+    const prioritized = [...messages].sort((a, b) => b.priority - a.priority || a.index - b.index);
+    const starred = prioritized.filter(message => message.priority > 0);
+    const ordinary = prioritized.filter(message => message.priority === 0);
+    const budget = Math.max(800, Math.min(12000, Math.ceil(tokenEstimate * (operation === "migration" ? 0.38 : 0.24))));
+    const selected = [...starred, ...ordinary].slice(0, Math.max(8, Math.ceil(budget / 80)));
+    const history = selected.sort((a, b) => a.index - b.index).map(message =>
+        `[${message.role === "user" ? "USER" : "ASSISTANT (unverified unless user-confirmed)"}; priority ${message.priority}; estimated tokens ${window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)}]\n${message.content}`
+    ).join("\n\n");
+    const starredTokenEstimate = starred.reduce((sum, message) => sum + (window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)) + 4, 0);
+    return { apiId: activeApi.id, messages, tokenEstimate, history, budget, starredTokenEstimate };
+}
+
+async function generatePillarContent(apiId, sourceMessages, instruction, maxWords) {
+    const prompt = `${instruction}\nFollow the source policy strictly: USER messages are authoritative. ASSISTANT messages are unverified and may be included only as attributed assistant statements or when the user explicitly confirms them. Do not invent or infer facts. Write "Not specified" for missing information. Do not import information from other conversations or website-wide state. Keep the result under ${maxWords} words and return plain Markdown only.\n\nMessages from this conversation only:\n\n${sourceMessages}\n\nCreate the requested output now.`;
+    const payload = [{ role: "user", content: prompt }];
+    const task = instruction.includes("structured Master Prompt") ? "context_migration" : "context_compression";
+    const response = await fetch("/api/chat", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiId, messages: payload })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || `Generation failed (${response.status}).`);
+    if (typeof data.reply !== "string" || !data.reply.trim()) throw new Error("The selected model returned an empty result.");
+    return { reply: data.reply.trim(), usage: data.usage || null, task };
+}
+
+function showMigrationReview(prompt, metadata) {
+    return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.className = "pillar-review-overlay";
+        const dialog = document.createElement("section");
+        dialog.className = "pillar-review-dialog";
+        const title = document.createElement("h2");
+        title.textContent = "Review Master Prompt";
+        const details = document.createElement("p");
+        details.textContent = `Estimated source size: ${metadata.tokenEstimate.toLocaleString()} tokens. ${metadata.starredCount} starred messages were prioritized. Edit the prompt if needed before creating the new chat.`;
+        const preview = document.createElement("div");
+        preview.className = "pillar-review-preview markdown-content";
+        renderAssistantMarkdown(preview, prompt);
+        const textarea = document.createElement("textarea");
+        textarea.value = prompt;
+        textarea.hidden = true;
+        textarea.setAttribute("aria-label", "Generated Master Prompt");
+        const actions = document.createElement("div");
+        actions.className = "pillar-review-actions";
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "pillar-action-button";
+        edit.textContent = "Edit Markdown";
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "pillar-action-button";
+        cancel.textContent = "Cancel";
+        const confirm = document.createElement("button");
+        confirm.type = "button";
+        confirm.className = "pillar-action-button primary";
+        confirm.textContent = "Create new chat";
+        actions.append(edit, cancel, confirm);
+        dialog.append(title, details, preview, textarea, actions);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const finish = value => { overlay.remove(); resolve(value); };
+        edit.addEventListener("click", () => {
+            const editing = textarea.hidden;
+            if (editing) {
+                textarea.hidden = false;
+                preview.hidden = true;
+                edit.textContent = "Preview Markdown";
+                textarea.focus();
+            } else {
+                renderAssistantMarkdown(preview, textarea.value);
+                textarea.hidden = true;
+                preview.hidden = false;
+                edit.textContent = "Edit Markdown";
+            }
+        });
+        cancel.addEventListener("click", () => finish(null));
+        confirm.addEventListener("click", () => finish(textarea.value.trim()));
+        overlay.addEventListener("click", event => { if (event.target === overlay) finish(null); });
+    });
+}
+
+function showCompressionReview(summary, metadata) {
+    return new Promise(resolve => {
+        const overlay = document.createElement("div");
+        overlay.className = "pillar-review-overlay";
+        const dialog = document.createElement("section");
+        dialog.className = "pillar-review-dialog";
+        const title = document.createElement("h2");
+        title.textContent = "Review Compressed Context";
+        const details = document.createElement("p");
+        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()}.`;
+        const preview = document.createElement("div");
+        preview.className = "pillar-review-preview markdown-content";
+        renderAssistantMarkdown(preview, summary);
+        const textarea = document.createElement("textarea");
+        textarea.value = summary;
+        textarea.hidden = true;
+        textarea.setAttribute("aria-label", "Generated compressed context");
+        const actions = document.createElement("div");
+        actions.className = "pillar-review-actions";
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "pillar-action-button";
+        edit.textContent = "Edit Markdown";
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "pillar-action-button";
+        cancel.textContent = "Cancel";
+        const confirm = document.createElement("button");
+        confirm.type = "button";
+        confirm.className = "pillar-action-button primary";
+        confirm.textContent = "Apply compression";
+        actions.append(edit, cancel, confirm);
+        dialog.append(title, details, preview, textarea, actions);
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
+        const finish = value => { overlay.remove(); resolve(value); };
+        edit.addEventListener("click", () => {
+            const editing = textarea.hidden;
+            if (editing) {
+                textarea.hidden = false;
+                preview.hidden = true;
+                edit.textContent = "Preview Markdown";
+                textarea.focus();
+            } else {
+                renderAssistantMarkdown(preview, textarea.value);
+                textarea.hidden = true;
+                preview.hidden = false;
+                edit.textContent = "Edit Markdown";
+            }
+        });
+        cancel.addEventListener("click", () => finish(null));
+        confirm.addEventListener("click", () => finish(textarea.value.trim()));
+        overlay.addEventListener("click", event => { if (event.target === overlay) finish(null); });
+    });
+}
+
+async function runMigration() {
+    let thread = getActiveThread();
+    if (!thread) return;
+    if (migrateConversationButton) migrateConversationButton.disabled = true;
+    setContextActionStatus("Preparing a structured Master Prompt…");
+    try {
+        thread = await syncThreadMessagesFromServer(thread.id) || thread;
+        const request = buildPillarRequest(thread, "migration");
+        const generated = await generatePillarContent(request.apiId, request.history,
+            "Create a structured Master Prompt from this conversation only for continuing it in a new conversation. Include these headings: Project or Conversation Objective; Background and Important Context; User Instructions; Important Decisions; Technical Information; Current Progress; Pending Tasks; Known Problems; Important Constraints; Next Recommended Steps. Treat starred messages as important, but do not convert unconfirmed assistant claims into facts. Do not import details from other conversations or invent anything.", 2200);
+        const prompt = generated.reply;
+        const approvedPrompt = await showMigrationReview(prompt, { tokenEstimate: request.tokenEstimate, starredCount: request.messages.filter(message => message.priority > 0).length });
+        if (!approvedPrompt) {
+            setContextActionStatus("Migration cancelled. The original conversation is unchanged.");
+            return;
+        }
+        const newThread = {
+            id: "thread_" + Date.now(),
+            title: `Continue: ${thread.title || "Conversation"}`.slice(0, 60),
+            messages: [{ role: "user", content: `Use this Master Prompt as the working context for continuing the project:\n\n${approvedPrompt}`, priority: 3 }],
+            migratedFrom: thread.id,
+            masterPrompt: approvedPrompt
+        };
+        threads.unshift(newThread);
+        activeThreadId = newThread.id;
+        try {
+            const persisted = await fetch(`/api/threads/${encodeURIComponent(newThread.id)}/messages`, {
+                method: "PUT", credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messages: newThread.messages })
+            });
+            const persistedData = await persisted.json().catch(() => ({}));
+            if (!persisted.ok) throw new Error(persistedData.error || "Could not persist the new conversation.");
+        } catch (persistError) {
+            threads.shift();
+            activeThreadId = thread.id;
+            throw persistError;
+        }
+        saveThreadsToStorage();
+        clearChatMessages();
+        welcome?.classList.add("hidden");
+        addMessage(newThread.messages[0].content, "user", null, 3);
+        renderThreads();
+        MigrationManager.setConversation(newThread.id);
+        updateCompressionCooldown();
+        if (typeof LocalConversationStorage !== "undefined" && LocalConversationStorage.isFolderSelected()) {
+            try { await LocalConversationStorage.saveConversation(newThread); }
+            catch (archiveError) { console.warn("Could not copy migrated chat to archive:", archiveError.message); }
+        }
+        setContextActionStatus("New chat created with the reviewed Master Prompt. The original conversation is preserved.");
+    } catch (error) {
+        console.error("Auto-migration failed:", error);
+        setContextActionStatus(error.message || "Could not prepare a Master Prompt.");
+    } finally {
+        if (migrateConversationButton) migrateConversationButton.disabled = false;
+    }
+}
+
+async function runCompression() {
+    let thread = getActiveThread();
+    if (!thread) return;
+    if (Number(thread.compression?.lastSuccessfulAt || 0) + COMPRESSION_COOLDOWN_MS > Date.now()) {
+        updateCompressionCooldown();
+        return;
+    }
+    if (compressConversationButton) compressConversationButton.disabled = true;
+    setContextActionStatus("Compressing conversation context…");
+    try {
+        thread = await syncThreadMessagesFromServer(thread.id) || thread;
+        if (getActiveThread()?.id !== thread.id) throw new Error("The active conversation changed. Reopen its context tools and try again.");
+        const request = buildPillarRequest(thread, "compression");
+        const generated = await generatePillarContent(request.apiId, request.history,
+            "Compress ONLY this conversation into a concise reusable context record. The source messages are labeled USER or ASSISTANT. Treat USER messages as the authoritative record of the user's goals, facts, requirements, and decisions. Assistant messages are unverified suggestions unless the user explicitly confirms them. Never turn assistant examples, guesses, or general explanations into project facts. Do not invent a project objective, model limits, technical stack, test results, or pending work. If the source does not state a fact, write Not specified. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Preserve starred messages. Merge repetition without losing unique user instructions. This summary will replace ordinary messages in this one conversation only; it will not affect any other conversation.", 1600);
+        const compressed = generated.reply;
+        const compressedEstimate = window.CloudTokenManager?.estimateTokens(compressed) ?? Math.ceil(compressed.length / 4);
+        if (compressedEstimate >= Math.max(1, request.tokenEstimate - request.starredTokenEstimate)) {
+            throw new Error("The summary did not reduce the estimated context by at least 10%. No changes were saved.");
+        }
+        const approvedSummary = await showCompressionReview(compressed, {
+            sourceTokenEstimate: request.tokenEstimate,
+            compressedTokenEstimate: compressedEstimate,
+            sourceMessageCount: request.messages.length
+        });
+        if (!approvedSummary) {
+            setContextActionStatus("Compression cancelled. The conversation is unchanged.");
+            return;
+        }
+        const summarizedMessages = request.messages.filter(message => message.priority > 0).map(message => ({
+            role: message.role,
+            content: message.content,
+            priority: message.priority,
+            message_id: thread.messages[message.index]?.message_id
+        }));
+        summarizedMessages.push({ role: "assistant", content: `[Conversation context compressed by user]\n${approvedSummary}`, priority: 3 });
+        const nextMessages = summarizedMessages;
+        const originalMessages = thread.messages;
+        setContextActionStatus("Archiving the original conversation before applying compression…");
+        const archived = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/archive-original`, {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ originalTitle: thread.title || "Conversation", messages: originalMessages })
+        });
+        const archiveData = await archived.json().catch(() => ({}));
+        if (!archived.ok) throw new Error(archiveData.error || "The original conversation could not be archived, so compression was not applied.");
+        const savedHistory = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/messages`, {
+            method: "PUT", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: nextMessages })
+        });
+        const historyData = await savedHistory.json().catch(() => ({}));
+        if (!savedHistory.ok) throw new Error(historyData.error || "Compression was generated, but the active history could not be updated.");
+        thread.messages = nextMessages;
+        const stored = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/compression`, {
+            method: "PUT",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                summary: approvedSummary,
+                sourceTokenEstimate: request.tokenEstimate,
+                compressedTokenEstimate: compressedEstimate,
+                sourceMessageCount: request.messages.length
+            })
+        });
+        const storedData = await stored.json().catch(() => ({}));
+        if (!stored.ok) {
+            await fetch(`/api/threads/${encodeURIComponent(thread.id)}/messages`, {
+                method: "PUT", credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ messages: originalMessages })
+            }).catch(() => {});
+            thread.messages = originalMessages;
+            throw new Error(storedData.error || "Could not save the compression record; the original messages were restored.");
+        }
+        thread.compression = storedData.compression;
+        saveThreadsToStorage();
+        if (getActiveThread()?.id === thread.id) {
+            clearChatMessages();
+            thread.messages.forEach(message => addMessage(message.content, message.role === "assistant" || message.role === "ai" ? "ai" : "user", message.message_id, message.priority || 0));
+            estimateVisibleContextUsage();
+        }
+        if (typeof LocalConversationStorage !== "undefined" && LocalConversationStorage.isFolderSelected()) {
+            try { await LocalConversationStorage.saveConversation(thread); }
+            catch (archiveError) { console.warn("Could not copy compression summary to archive:", archiveError.message); }
+        }
+        updateCompressionCooldown();
+        setContextActionStatus(`Context compressed and applied (${request.tokenEstimate.toLocaleString()} → ${compressedEstimate.toLocaleString()} estimated tokens). Starred messages were preserved.`);
+    } catch (error) {
+        console.error("Conversation compression failed:", error);
+        if (compressConversationButton) compressConversationButton.disabled = false;
+        setContextActionStatus(error.message || "Could not compress this conversation.");
+    }
+}
+
+migrateConversationButton?.addEventListener("click", runMigration);
+compressConversationButton?.addEventListener("click", runCompression);
+window.addEventListener("migration:pillar1", runMigration);
+window.addEventListener("migration:pillar2", runCompression);
+
 
 async function saveMessageToServer(conversationId, role, content) {
     const serverRole = role === "ai" ? "assistant" : role;
+
+    try {
+        const archiveResponse = await fetch(`/api/threads/${encodeURIComponent(conversationId)}/messages`, {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ role: serverRole, content })
+        });
+        const archiveData = await archiveResponse.json().catch(() => ({}));
+        if (!archiveResponse.ok || !archiveData.success) throw new Error(archiveData.error || "Message could not be saved.");
+        if (typeof LocalConversationStorage !== "undefined" && LocalConversationStorage.isFolderSelected()) {
+            LocalConversationStorage.saveMessage(conversationId, serverRole, content).catch(error => console.warn("Local archive write failed:", error.message));
+        }
+        return archiveData.message;
+    } catch (error) {
+        console.error("Conversation storage error:", error);
+        return false;
+    }
 
     // 1. Save to the selected local archive folder
     if (
@@ -610,6 +1159,7 @@ async function sendMessage() {
 
         // 8. Check migration usage
         const contextUsage = data?.usage?.contextBudget?.usagePercent;
+        setContextUsage(data?.usage);
 
         if (Number.isFinite(contextUsage)) {
             window.MigrationManager?.checkUsageForConversation(
@@ -664,12 +1214,166 @@ async function sendMessage() {
     }
 }
 
-function addMessage(text, type) {
+function appendInlineMarkdown(parent, source) {
+    const tokenPattern = /(\[[^\]]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_)/g;
+    let cursor = 0;
+    for (const match of source.matchAll(tokenPattern)) {
+        if (match.index > cursor) parent.appendChild(document.createTextNode(source.slice(cursor, match.index)));
+        const token = match[0];
+        const linkMatch = token.match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/i);
+        let node;
+        if (linkMatch) {
+            node = document.createElement("a");
+            node.href = linkMatch[2];
+            node.target = "_blank";
+            node.rel = "noopener noreferrer";
+            node.textContent = linkMatch[1];
+        } else if (token.startsWith("**") || token.startsWith("__")) {
+            node = document.createElement("strong");
+            node.textContent = token.slice(2, -2);
+        } else if (token.startsWith("*" ) || token.startsWith("_")) {
+            node = document.createElement("em");
+            node.textContent = token.slice(1, -1);
+        } else {
+            node = document.createElement("code");
+            node.textContent = token.slice(1, -1);
+        }
+        parent.appendChild(node);
+        cursor = match.index + token.length;
+    }
+    if (cursor < source.length) parent.appendChild(document.createTextNode(source.slice(cursor)));
+}
+
+function splitMarkdownTableRow(line) {
+    return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map(cell => cell.trim());
+}
+
+function isMarkdownTableDivider(line) {
+    const cells = splitMarkdownTableRow(line);
+    return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell));
+}
+
+function renderAssistantMarkdown(target, markdown) {
+    const lines = String(markdown ?? "").replace(/\r/g, "").split("\n");
+    let index = 0;
+    const isBlockStart = line => /^(#{1,6})\s|^```|^~~~|^\s*(?:[-*+]\s+|\d+[.)]\s+|>\s*)|^\s*([-*_]\s*){3,}$/.test(line);
+    while (index < lines.length) {
+        const line = lines[index];
+        if (!line.trim()) { index++; continue; }
+        const fenceMatch = line.match(/^(```|~~~)\s*([a-zA-Z0-9_+-]*)\s*$/);
+        if (fenceMatch) {
+            const fence = fenceMatch[1];
+            const language = fenceMatch[2].toLowerCase();
+            const codeLines = [];
+            index++;
+            while (index < lines.length && !lines[index].startsWith(fence)) codeLines.push(lines[index++]);
+            if (index < lines.length) index++;
+            const codeText = codeLines.join("\n");
+            const hasMarkdownHeading = /^\s{0,3}#{1,6}\s+\S/m.test(codeText);
+            const hasMarkdownTable = codeLines.some((tableLine, lineIndex) =>
+                tableLine.includes("|") && lineIndex + 1 < codeLines.length && isMarkdownTableDivider(codeLines[lineIndex + 1])
+            );
+            const hasMarkdownList = /^\s{0,3}(?:[-*+]\s+|\d+[.)]\s+)/m.test(codeText);
+            const explicitlyMarkdown = language === "md" || language === "markdown";
+            if (explicitlyMarkdown || hasMarkdownHeading || hasMarkdownTable || (language === "vbnet" && hasMarkdownList)) {
+                renderAssistantMarkdown(target, codeText);
+                continue;
+            }
+            const pre = document.createElement("pre");
+            const code = document.createElement("code");
+            if (language) code.className = `language-${language}`;
+            code.textContent = codeText;
+            pre.appendChild(code);
+            target.appendChild(pre);
+            continue;
+        }
+        const heading = line.match(/^(#{1,6})\s+(.+)$/);
+        if (heading) {
+            const element = document.createElement(`h${heading[1].length}`);
+            appendInlineMarkdown(element, heading[2]);
+            target.appendChild(element);
+            index++;
+            continue;
+        }
+        if (index + 1 < lines.length && line.includes("|") && isMarkdownTableDivider(lines[index + 1])) {
+            const table = document.createElement("table");
+            const head = document.createElement("thead");
+            const headRow = document.createElement("tr");
+            splitMarkdownTableRow(line).forEach(cell => {
+                const th = document.createElement("th");
+                appendInlineMarkdown(th, cell);
+                headRow.appendChild(th);
+            });
+            head.appendChild(headRow);
+            table.appendChild(head);
+            index += 2;
+            const body = document.createElement("tbody");
+            while (index < lines.length && lines[index].includes("|") && lines[index].trim()) {
+                const row = document.createElement("tr");
+                splitMarkdownTableRow(lines[index++]).forEach(cell => {
+                    const td = document.createElement("td");
+                    appendInlineMarkdown(td, cell);
+                    row.appendChild(td);
+                });
+                body.appendChild(row);
+            }
+            table.appendChild(body);
+            target.appendChild(table);
+            continue;
+        }
+        const listMatch = line.match(/^\s*([-*+]|\d+[.)])\s+(.+)$/);
+        if (listMatch) {
+            const ordered = /^\d/.test(listMatch[1]);
+            const list = document.createElement(ordered ? "ol" : "ul");
+            while (index < lines.length) {
+                const item = lines[index].match(/^\s*([-*+]|\d+[.)])\s+(.+)$/);
+                if (!item || /^\d/.test(item[1]) !== ordered) break;
+                const li = document.createElement("li");
+                appendInlineMarkdown(li, item[2]);
+                list.appendChild(li);
+                index++;
+            }
+            target.appendChild(list);
+            continue;
+        }
+        if (/^\s*>\s?/.test(line)) {
+            const quote = document.createElement("blockquote");
+            while (index < lines.length && /^\s*>/.test(lines[index])) {
+                const p = document.createElement("p");
+                appendInlineMarkdown(p, lines[index++].replace(/^\s*>\s?/, ""));
+                quote.appendChild(p);
+            }
+            target.appendChild(quote);
+            continue;
+        }
+        if (/^\s*([-*_]\s*){3,}$/.test(line)) {
+            target.appendChild(document.createElement("hr"));
+            index++;
+            continue;
+        }
+        const paragraph = document.createElement("p");
+        const paragraphLines = [line];
+        index++;
+        while (index < lines.length && lines[index].trim() && !isBlockStart(lines[index]) && !(index + 1 < lines.length && lines[index].includes("|") && isMarkdownTableDivider(lines[index + 1]))) {
+            paragraphLines.push(lines[index++]);
+        }
+        paragraphLines.forEach((paragraphLine, lineIndex) => {
+            if (lineIndex) paragraph.appendChild(document.createElement("br"));
+            appendInlineMarkdown(paragraph, paragraphLine);
+        });
+        target.appendChild(paragraph);
+    }
+}
+
+function addMessage(text, type, messageId = null, priority = 0) {
     const message = document.createElement("div");
     message.classList.add("message", type);
     const messageText = document.createElement("div");
     messageText.classList.add("message-text");
-    messageText.textContent = text;
+    if (type === "ai" && text !== "Thinking...") {
+        messageText.classList.add("markdown-content");
+        renderAssistantMarkdown(messageText, text);
+    } else messageText.textContent = text;
     const starButton = document.createElement("button");
     starButton.classList.add("message-star");
     starButton.type = "button";
@@ -678,17 +1382,31 @@ function addMessage(text, type) {
     starButton.innerHTML = "☆";
     starButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        const starred = message.classList.toggle("starred");
-        if (starred) {
-            starButton.innerHTML = "★";
-            starButton.setAttribute("aria-label", "Unstar message");
-            starButton.setAttribute("title", "Unstar message");
-        } else {
-            starButton.innerHTML = "☆";
-            starButton.setAttribute("aria-label", "Star message");
-            starButton.setAttribute("title", "Star message");
+        const thread = getActiveThread();
+        const target = thread?.messages.find(item => item.message_id === messageId);
+        const nextPriority = ((target?.priority || priority || 0) + 1) % 4;
+        if (!target) {
+            showPopup("Could Not Update Priority", "This message has no saved priority record yet.", "warning");
+            return;
         }
+        fetch(`/api/threads/${encodeURIComponent(thread.id)}/messages/${encodeURIComponent(messageId)}/priority`, {
+            method: "PATCH", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ priority: nextPriority })
+        }).then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || "Priority update failed.");
+            target.priority = nextPriority;
+            saveThreadsToStorage();
+            message.classList.toggle("starred", nextPriority > 0);
+            starButton.textContent = nextPriority > 0 ? "★" : "☆";
+            starButton.setAttribute("aria-label", nextPriority > 0 ? `${nextPriority} star priority` : "Star message");
+            starButton.setAttribute("title", `Priority ${nextPriority} (0–3)`);
+        }).catch(error => showPopup("Could Not Update Priority", error.message, "error"));
     });
+    message.dataset.messageId = messageId || "";
+    message.classList.toggle("starred", priority > 0);
+    if (priority > 0) starButton.textContent = "★";
     message.appendChild(messageText);
     message.appendChild(starButton);
     chat?.appendChild(message);
@@ -796,7 +1514,6 @@ if (customThemeInput) {
 }
 /* ========================================================= SECURE CREDENTIAL DATA LOADERS ========================================================= */
 const apiSecrets = new Map();
-let apiEntries = [];
 let isLoadingApis = false;
 
 async function loadApiEntries() {

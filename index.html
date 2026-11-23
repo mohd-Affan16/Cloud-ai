@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Cloud Hybrid AI</title>
-        <link rel="stylesheet" href="/style.css" />
+        <link rel="stylesheet" href="/style.css?v=solid-prompt-markdown-3" />
     </head>
     <body>
         <!-- Cloud-ai Turtle Loader Overlay -->
@@ -114,6 +114,20 @@
                 <span>Your ideas, one conversation at a time.</span>
             </section>
         </main>
+        <div id="contextTools" class="context-tools">
+            <div id="contextToolsMenu" class="context-tools-menu" aria-hidden="true">
+                <button id="migrateConversationButton" type="button" title="Create a new conversation with a reviewed Master Prompt">Continue in a new chat</button>
+                <button id="compressConversationButton" type="button" title="Create and save a compact context summary">Compress context</button>
+                <span id="contextActionStatus" role="status" aria-live="polite"></span>
+            </div>
+            <button id="contextUsageButton" class="context-usage-button" type="button" aria-label="Context window usage unavailable" aria-expanded="false" aria-controls="contextToolsMenu">
+                <svg class="context-ring" viewBox="0 0 48 48" aria-hidden="true">
+                    <circle class="context-ring-track" cx="24" cy="24" r="20"></circle>
+                    <circle id="contextUsageRing" class="context-ring-value" cx="24" cy="24" r="20"></circle>
+                </svg>
+                <span id="contextUsageLabel">—</span>
+            </button>
+        </div>
         <!-- ===================================================== MESSAGE INPUT ====================================================== -->
         <div id="inputContainer" class="input-container">
             <textarea id="messageInput" placeholder="Message Cloud Hybrid AI..." rows="1"></textarea>
@@ -179,6 +193,20 @@
                             <span class="settings-navigation-text">
                                 <strong>API Management</strong>
                                 <small>Manage the providers used by your assistant.</small>
+                            </span>
+                        </span>
+                        <span class="settings-navigation-arrow"> → </span>
+                    </button>
+                    <button class="settings-navigation-item" data-page="archivePage" type="button">
+                        <span class="settings-navigation-left">
+                            <span class="menu-item-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24">
+                                    <path d="M4 4h16v5H4zM6 9v11h12V9M10 13h4"></path>
+                                </svg>
+                            </span>
+                            <span class="settings-navigation-text">
+                                <strong>Archive</strong>
+                                <small>View original conversations saved before compression.</small>
                             </span>
                         </span>
                         <span class="settings-navigation-arrow"> → </span>
@@ -262,6 +290,18 @@
                     </button>
                    
                 </div>
+</section>
+
+<section id="archivePage" class="app-page">
+    <div class="page-header">
+        <h1>Archive</h1>
+        <button class="back-button" type="button">←</button>
+    </div>
+    <p class="page-description">Original conversation files saved before context compression.</p>
+    <div class="glass-card archive-page-card">
+        <p id="archivePageStatus" class="storage-description" role="status">Loading archived conversations…</p>
+        <div id="archiveConversationList" class="archive-conversation-list"></div>
+    </div>
 </section>
 
 <!-- =====================================================
@@ -696,7 +736,7 @@
         <script src="/js/themes.js"></script>
         <script src="/local-conversation-storage.js"></script>
         <script src="/migrationManager.js"></script>
-        <script src="/app.js"></script>
+        <script src="/app.js?v=solid-prompt-markdown-3"></script>
 <script>
 (() => {
     const loader = document.getElementById("turtleLoaderFrame");

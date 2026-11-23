@@ -21,6 +21,7 @@ const session = require("express-session");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const path = require("path");
+const fs = require("fs");
 const { getConversationDirectory } = require("./conversationstorage.js");
 const { appendMessage } = require("./conversationstorage.js");
 // ============================================
@@ -84,7 +85,101 @@ passport.deserializeUser((user, done) => {
 // ============================================
 // CREATE CONVERSATION FOLDER API
 // ============================================
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
+
+function getAuthenticatedThreadFile(userId, threadId, create = false) {
+    if (typeof threadId !== "string" || !/^thread_[a-zA-Z0-9_-]{1,100}$/.test(threadId)) {
+        throw new Error("Invalid conversation ID.");
+    }
+    const userDirectory = path.resolve(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
+    const threadDirectory = path.resolve(userDirectory, threadId);
+    if (!threadDirectory.startsWith(userDirectory + path.sep)) throw new Error("Invalid conversation path.");
+    if (create) fs.mkdirSync(threadDirectory, { recursive: true });
+    return { threadDirectory, filePath: path.join(threadDirectory, "conversation.jsonl") };
+}
+
+function getAuthenticatedArchiveDirectory(userId, create = false) {
+    const userDirectory = path.resolve(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
+    const archiveDirectory = path.resolve(userDirectory, "archives");
+    if (!archiveDirectory.startsWith(userDirectory + path.sep)) throw new Error("Invalid archive path.");
+    if (create) fs.mkdirSync(archiveDirectory, { recursive: true });
+    return archiveDirectory;
+}
+
+function readAuthenticatedThread(userId, threadId) {
+    const { filePath } = getAuthenticatedThreadFile(userId, threadId);
+    if (!fs.existsSync(filePath)) return null;
+    const messages = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map((line, index) => {
+        const record = JSON.parse(line);
+        return {
+            message_id: record.message_id || `${threadId}_${index}`,
+            role: record.role,
+            content: record.content,
+            priority: Number.isInteger(record.priority) ? record.priority : 0,
+            timestamp: record.timestamp || null
+        };
+    });
+    const metadataPath = path.join(path.dirname(filePath), "metadata.json");
+    const metadata = fs.existsSync(metadataPath) ? JSON.parse(fs.readFileSync(metadataPath, "utf8")) : {};
+    return { id: threadId, title: metadata.title || threadId, messages, archived: metadata.archived === true };
+}
+
+function appendAuthenticatedThreadMessage(userId, threadId, role, content) {
+    const { filePath } = getAuthenticatedThreadFile(userId, threadId, true);
+    const existingMessages = readAuthenticatedThread(userId, threadId)?.messages || [];
+    const record = {
+        message_id: `${threadId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        role,
+        content,
+        priority: 0,
+        timestamp: new Date().toISOString()
+    };
+    fs.appendFileSync(filePath, JSON.stringify(record) + "\n", "utf8");
+    return record;
+}
+
+function updateAuthenticatedMessagePriority(userId, threadId, messageId, priority) {
+    const { filePath } = getAuthenticatedThreadFile(userId, threadId);
+    if (!fs.existsSync(filePath)) throw new Error("Conversation not found.");
+    const records = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+    const record = records.find(item => item.message_id === messageId);
+    if (!record) throw new Error("Message not found.");
+    const previousPriority = Number.isInteger(record.priority) ? record.priority : 0;
+    const counts = records.reduce((result, item) => {
+        const value = Number.isInteger(item.priority) ? item.priority : 0;
+        result[value] = (result[value] || 0) + 1;
+        return result;
+    }, {});
+    const caps = { 1: 10, 2: 7, 3: 3 };
+    const totalStarred = records.filter(item => Number.isInteger(item.priority) && item.priority > 0).length;
+    if (priority > 0 && priority !== previousPriority && ((counts[priority] || 0) >= caps[priority] || totalStarred >= 20)) {
+        throw new Error(`Priority ${priority} limit reached for this conversation.`);
+    }
+    record.priority = priority;
+    fs.writeFileSync(filePath, records.map(item => JSON.stringify(item)).join("\n") + "\n", "utf8");
+    return record;
+}
+
+function writeAuthenticatedThreadMessages(userId, threadId, messages) {
+    const { filePath } = getAuthenticatedThreadFile(userId, threadId, true);
+    const records = messages.map((message, index) => ({
+        message_id: message.message_id || `${threadId}_${index}`,
+        role: message.role === "ai" ? "assistant" : message.role,
+        content: String(message.content || ""),
+        priority: Number.isInteger(message.priority) ? message.priority : 0,
+        timestamp: message.timestamp || new Date().toISOString()
+    }));
+    const temporaryPath = `${filePath}.tmp`;
+    fs.writeFileSync(temporaryPath, records.map(record => JSON.stringify(record)).join("\n") + (records.length ? "\n" : ""), "utf8");
+    try {
+        fs.renameSync(temporaryPath, filePath);
+    } catch (error) {
+        if (!fs.existsSync(filePath) || !["EPERM", "EEXIST"].includes(error.code)) throw error;
+        fs.copyFileSync(temporaryPath, filePath);
+        fs.unlinkSync(temporaryPath);
+    }
+    return records.length;
+}
 
 /* ============================================
    API KEY DATABASE ROUTES oct 15 leader
@@ -173,10 +268,7 @@ app.get("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        const thread = getConversation(
-            String(req.user.id),
-            req.params.threadId
-        );
+        const thread = readAuthenticatedThread(String(req.user.id), req.params.threadId);
 
         if (!thread) {
             return res.status(404).json({
@@ -218,17 +310,17 @@ app.patch("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        const thread = renameConversation(
-            String(req.user.id),
-            req.params.threadId,
-            title.trim()
-        );
+        const thread = readAuthenticatedThread(String(req.user.id), req.params.threadId);
 
         if (!thread) {
             return res.status(404).json({
                 error: "Conversation not found."
             });
         }
+
+        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId, true);
+        fs.writeFileSync(path.join(threadDirectory, "metadata.json"), JSON.stringify({ title: title.trim(), archived: thread.archived }), "utf8");
+        thread.title = title.trim();
 
         return res.json({
             success: true,
@@ -258,10 +350,8 @@ app.post("/api/threads/:threadId/archive", (req, res) => {
     }
 
     try {
-        archiveConversation(
-            String(req.user.id),
-            req.params.threadId
-        );
+        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
+        fs.writeFileSync(path.join(threadDirectory, "metadata.json"), JSON.stringify({ archived: true, archivedAt: Date.now() }), "utf8");
 
         return res.json({
             success: true,
@@ -289,10 +379,14 @@ app.post("/api/threads/:threadId/restore", (req, res) => {
     }
 
     try {
-        restoreConversation(
-            String(req.user.id),
-            req.params.threadId
-        );
+        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
+        const metadataPath = path.join(threadDirectory, "metadata.json");
+        if (fs.existsSync(metadataPath)) {
+            const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+            delete metadata.archived;
+            delete metadata.archivedAt;
+            fs.writeFileSync(metadataPath, JSON.stringify(metadata), "utf8");
+        }
 
         return res.json({
             success: true,
@@ -320,10 +414,8 @@ app.delete("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        deleteConversation(
-            String(req.user.id),
-            req.params.threadId
-        );
+        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
+        if (fs.existsSync(threadDirectory)) fs.rmSync(threadDirectory, { recursive: true, force: true });
 
         return res.json({
             success: true,
@@ -365,12 +457,7 @@ app.post("/api/threads/:threadId/messages", (req, res) => {
     }
 
     try {
-        const message = appendThreadMessage(
-            String(req.user.id),
-            req.params.threadId,
-            role,
-            content
-        );
+        const message = appendAuthenticatedThreadMessage(String(req.user.id), req.params.threadId, role, content);
 
         return res.status(201).json({
             success: true,
@@ -383,6 +470,130 @@ app.post("/api/threads/:threadId/messages", (req, res) => {
         return res.status(400).json({
             error: error.message || "Could not save message."
         });
+    }
+});
+
+app.put("/api/threads/:threadId/compression", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Please log in first." });
+    }
+    const { summary, sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount } = req.body || {};
+    if (typeof summary !== "string" || !summary.trim() || summary.length > 30000 ||
+        !Number.isFinite(sourceTokenEstimate) || !Number.isFinite(compressedTokenEstimate) ||
+        compressedTokenEstimate >= sourceTokenEstimate || !Number.isInteger(sourceMessageCount) || sourceMessageCount < 1) {
+        return res.status(400).json({ error: "A valid, smaller compression summary is required." });
+    }
+    try {
+        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId, true);
+        const filePath = path.join(threadDirectory, "compression.json");
+        const previous = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf8")) : {};
+        const now = Date.now();
+        if (previous.lastSuccessfulAt && now - previous.lastSuccessfulAt < 24 * 60 * 60 * 1000) {
+            const retryAfterMs = 24 * 60 * 60 * 1000 - (now - previous.lastSuccessfulAt);
+            return res.status(429).json({ error: "Manual compression is available after the 24-hour cooldown.", retryAfterMs });
+        }
+        const compression = { summary: summary.trim(), sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount, lastSuccessfulAt: now };
+        fs.writeFileSync(filePath, JSON.stringify(compression, null, 2), "utf8");
+        return res.json({ success: true, compression });
+    } catch (error) {
+        console.error("Compression storage failed:", error.message);
+        return res.status(400).json({ error: error.message || "Could not store compression summary." });
+    }
+});
+
+app.get("/api/threads/:threadId/compression", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Please log in first." });
+    }
+    try {
+        const { filePath } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
+        if (!fs.existsSync(filePath)) return res.json({ compression: null });
+        return res.json({ compression: JSON.parse(fs.readFileSync(filePath, "utf8")) });
+    } catch (error) {
+        return res.status(400).json({ error: error.message || "Could not load compression summary." });
+    }
+});
+
+app.post("/api/threads/:threadId/archive-original", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    const { messages, originalTitle } = req.body || {};
+    if (!Array.isArray(messages) || messages.length > 1000 || !messages.every(message =>
+        message && ["user", "assistant", "ai"].includes(message.role) && typeof message.content === "string" && message.content.length <= 50000 && [0, 1, 2, 3].includes(message.priority || 0)
+    )) return res.status(400).json({ error: "Invalid original conversation messages." });
+    try {
+        const userId = String(req.user.id);
+        const sourceThread = readAuthenticatedThread(userId, req.params.threadId);
+        if (!sourceThread) return res.status(404).json({ error: "The original conversation was not found on the server." });
+        const archiveDirectory = getAuthenticatedArchiveDirectory(userId, true);
+        const archiveId = `archive_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+        const title = `Original: ${String(originalTitle || sourceThread.title || "Conversation").replace(/^Original:\s*/i, "").trim().slice(0, 120)}`;
+        const archive = {
+            id: archiveId,
+            title,
+            sourceThreadId: req.params.threadId,
+            archivedAt: new Date().toISOString(),
+            messages: messages.map(message => ({
+                role: message.role === "ai" ? "assistant" : message.role,
+                content: message.content,
+                priority: Number.isInteger(message.priority) ? message.priority : 0,
+                message_id: typeof message.message_id === "string" ? message.message_id : null,
+                timestamp: message.timestamp || null
+            }))
+        };
+        const filePath = path.join(archiveDirectory, `${archiveId}.json`);
+        fs.writeFileSync(filePath, JSON.stringify(archive, null, 2), { encoding: "utf8", flag: "wx" });
+        return res.json({ success: true, archive: { id: archive.id, title: archive.title, sourceThreadId: archive.sourceThreadId, archivedAt: archive.archivedAt, messageCount: archive.messages.length } });
+    } catch (error) {
+        console.error("Original conversation archive failed:", error.message);
+        return res.status(400).json({ error: error.message || "Could not archive the original conversation." });
+    }
+});
+
+app.get("/api/archives", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    try {
+        const archiveDirectory = getAuthenticatedArchiveDirectory(String(req.user.id));
+        if (!fs.existsSync(archiveDirectory)) return res.json({ archives: [] });
+        const archives = fs.readdirSync(archiveDirectory)
+            .filter(name => /^archive_[a-zA-Z0-9_-]+\.json$/.test(name))
+            .map(name => {
+                const record = JSON.parse(fs.readFileSync(path.join(archiveDirectory, name), "utf8"));
+                return { id: record.id, title: record.title };
+            })
+            .sort((a, b) => String(b.archivedAt).localeCompare(String(a.archivedAt)));
+        return res.json({ archives });
+    } catch (error) {
+        console.error("Archive list load failed:", error.message);
+        return res.status(400).json({ error: error.message || "Could not load archived conversations." });
+    }
+});
+
+app.get("/api/archives/:archiveId", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    if (!/^archive_[a-zA-Z0-9_-]{1,120}$/.test(req.params.archiveId)) return res.status(400).json({ error: "Invalid archive ID." });
+    try {
+        const filePath = path.join(getAuthenticatedArchiveDirectory(String(req.user.id)), `${req.params.archiveId}.json`);
+        if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Archived conversation not found." });
+        const record = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        const messages = Array.isArray(record.messages) ? record.messages.map(message => ({ role: message.role, content: message.content })) : [];
+        return res.json({ messages });
+    } catch (error) {
+        console.error("Archived conversation load failed:", error.message);
+        return res.status(400).json({ error: error.message || "Could not load this archived conversation." });
+    }
+});
+
+app.put("/api/threads/:threadId/messages", (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    const { messages } = req.body || {};
+    if (!Array.isArray(messages) || messages.length > 1000 || !messages.every(message =>
+        message && ["user", "assistant", "ai"].includes(message.role) && typeof message.content === "string" && message.content.length <= 50000 && [0, 1, 2, 3].includes(message.priority || 0)
+    )) return res.status(400).json({ error: "Invalid conversation messages." });
+    try {
+        const count = writeAuthenticatedThreadMessages(String(req.user.id), req.params.threadId, messages);
+        return res.json({ success: true, messageCount: count });
+    } catch (error) {
+        return res.status(400).json({ error: error.message || "Could not save conversation." });
     }
 });
 
@@ -408,12 +619,7 @@ app.patch(
         }
 
         try {
-            const message = updateThreadMessagePriority(
-                String(req.user.id),
-                req.params.threadId,
-                req.params.messageId,
-                priority
-            );
+            const message = updateAuthenticatedMessagePriority(String(req.user.id), req.params.threadId, req.params.messageId, priority);
 
             return res.json({
                 success: true,
@@ -475,15 +681,16 @@ app.delete(
         }
 
         try {
-            const result = deleteThreadMessage(
-                String(req.user.id),
-                req.params.threadId,
-                req.params.messageId
-            );
+            const { filePath } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
+            if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Conversation not found." });
+            const records = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+            const nextRecords = records.filter(record => record.message_id !== req.params.messageId);
+            if (nextRecords.length === records.length) return res.status(404).json({ error: "Message not found." });
+            fs.writeFileSync(filePath, nextRecords.map(record => JSON.stringify(record)).join("\n") + (nextRecords.length ? "\n" : ""), "utf8");
 
             return res.json({
                 success: true,
-                ...result
+                deleted: true
             });
 
         } catch (error) {
@@ -839,7 +1046,7 @@ if (totalCharacters > 200000) {
             });
         }
         
-const actualUsage = normalizeUsage(data?.usage, provider);
+        const actualUsage = normalizeUsage(data?.usage, provider);
 if (
     actualUsage &&
     Number.isFinite(estimatedInputTokens) &&
