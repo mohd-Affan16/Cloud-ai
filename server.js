@@ -162,6 +162,340 @@ app.post("/api/keys", async (req, res) => {
     }
 });
 /* ============================================
+   GET ONE CONVERSATION
+   ============================================ */
+
+app.get("/api/threads/:threadId", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    try {
+        const thread = getConversation(
+            String(req.user.id),
+            req.params.threadId
+        );
+
+        if (!thread) {
+            return res.status(404).json({
+                error: "Conversation not found."
+            });
+        }
+
+        return res.json({
+            success: true,
+            thread
+        });
+
+    } catch (error) {
+        console.error("Conversation retrieval failed:", error.message);
+
+        return res.status(500).json({
+            error: "Could not retrieve conversation."
+        });
+    }
+});
+
+/* ============================================
+   RENAME CONVERSATION
+   ============================================ */
+
+app.patch("/api/threads/:threadId", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    const { title } = req.body;
+
+    if (typeof title !== "string" || !title.trim()) {
+        return res.status(400).json({
+            error: "A valid conversation title is required."
+        });
+    }
+
+    try {
+        const thread = renameConversation(
+            String(req.user.id),
+            req.params.threadId,
+            title.trim()
+        );
+
+        if (!thread) {
+            return res.status(404).json({
+                error: "Conversation not found."
+            });
+        }
+
+        return res.json({
+            success: true,
+            thread
+        });
+
+    } catch (error) {
+        console.error("Conversation rename failed:", error.message);
+
+        return res.status(400).json({
+            error: error.message || "Could not rename conversation."
+        });
+    }
+});
+
+
+
+/* ============================================
+   ARCHIVE CONVERSATION
+   ============================================ */
+
+app.post("/api/threads/:threadId/archive", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    try {
+        archiveConversation(
+            String(req.user.id),
+            req.params.threadId
+        );
+
+        return res.json({
+            success: true,
+            message: "Conversation archived successfully."
+        });
+
+    } catch (error) {
+        console.error("Conversation archive failed:", error.message);
+
+        return res.status(400).json({
+            error: error.message || "Could not archive conversation."
+        });
+    }
+});
+
+/* ============================================
+   RESTORE CONVERSATION
+   ============================================ */
+
+app.post("/api/threads/:threadId/restore", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    try {
+        restoreConversation(
+            String(req.user.id),
+            req.params.threadId
+        );
+
+        return res.json({
+            success: true,
+            message: "Conversation restored successfully."
+        });
+
+    } catch (error) {
+        console.error("Conversation restore failed:", error.message);
+
+        return res.status(400).json({
+            error: error.message || "Could not restore conversation."
+        });
+    }
+});
+
+/* ============================================
+   DELETE CONVERSATION PERMANENTLY
+   ============================================ */
+
+app.delete("/api/threads/:threadId", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    try {
+        deleteConversation(
+            String(req.user.id),
+            req.params.threadId
+        );
+
+        return res.json({
+            success: true,
+            message: "Conversation deleted permanently."
+        });
+
+    } catch (error) {
+        console.error("Conversation deletion failed:", error.message);
+
+        return res.status(400).json({
+            error: error.message || "Could not delete conversation."
+        });
+    }
+});
+
+/* ============================================
+   SAVE MESSAGE TO CONVERSATION
+   ============================================ */
+
+app.post("/api/threads/:threadId/messages", (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({
+            error: "Please log in first."
+        });
+    }
+
+    const { role, content } = req.body;
+
+    if (!["user", "assistant"].includes(role)) {
+        return res.status(400).json({
+            error: "Invalid message role."
+        });
+    }
+
+    if (typeof content !== "string" || !content.trim()) {
+        return res.status(400).json({
+            error: "Message content is required."
+        });
+    }
+
+    try {
+        const message = appendThreadMessage(
+            String(req.user.id),
+            req.params.threadId,
+            role,
+            content
+        );
+
+        return res.status(201).json({
+            success: true,
+            message
+        });
+
+    } catch (error) {
+        console.error("Message storage failed:", error.message);
+
+        return res.status(400).json({
+            error: error.message || "Could not save message."
+        });
+    }
+});
+
+/* ============================================
+   UPDATE MESSAGE STAR PRIORITY
+   ============================================ */
+
+app.patch(
+    "/api/threads/:threadId/messages/:messageId/priority",
+    (req, res) => {
+        if (!req.isAuthenticated()) {
+            return res.status(401).json({
+                error: "Please log in first."
+            });
+        }
+
+        const { priority } = req.body;
+
+        if (![0, 1, 2, 3].includes(priority)) {
+            return res.status(400).json({
+                error: "Priority must be between 0 and 3."
+            });
+        }
+
+        try {
+            const message = updateThreadMessagePriority(
+                String(req.user.id),
+                req.params.threadId,
+                req.params.messageId,
+                priority
+            );
+
+            return res.json({
+                success: true,
+                message
+            });
+
+        } catch (error) {
+            return res.status(400).json({
+                error: error.message || "Could not update message priority."
+            });
+        }
+    }
+);
+
+// List the signed-in user's saved API keys.
+// Never return encrypted or decrypted key material here.
+
+
+// app.get("/api/keys", async (req, res) => {
+
+//     if (!req.isAuthenticated()) {
+//         return res.status(401).json({
+//             error: "Please log in first."
+//         });
+//     }
+
+//     try {
+//         const result = await pool.query(
+//             `SELECT id, provider, label, model,
+//                     created_at, updated_at
+//              FROM user_api_keys
+//              WHERE user_id = $1
+//              ORDER BY created_at DESC`,
+//             [String(req.user.id)]
+//         );
+
+//         return res.json({
+//             keys: result.rows
+//         });
+//     } catch (error) {
+//         console.error("API key list failed:", error);
+
+//         return res.status(500).json({
+//             error: "Could not load saved API keys."
+//         });
+//     }
+// });
+
+/* =========================================================
+   DELETE INDIVIDUAL MESSAGE
+========================================================= */
+app.delete(
+    "/api/threads/:threadId/messages/:messageId",
+    (req, res) => {
+        if (!req.isAuthenticated()) {
+            return res.status(401).json({
+                error: "Please log in first."
+            });
+        }
+
+        try {
+            const result = deleteThreadMessage(
+                String(req.user.id),
+                req.params.threadId,
+                req.params.messageId
+            );
+
+            return res.json({
+                success: true,
+                ...result
+            });
+
+        } catch (error) {
+            console.error("Message deletion failed:", error.message);
+
+            return res.status(400).json({
+                error: error.message || "Could not delete message."
+            });
+        }
+    }
+);
+/* ============================================
    LIST SAVED API KEYS
    ============================================ */
 

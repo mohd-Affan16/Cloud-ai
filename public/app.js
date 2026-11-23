@@ -242,7 +242,9 @@ function clearChatMessages() {
         message.remove();
     });
 }
-
+/* =========================================================
+   CREATE NEW THREAD
+========================================================= */
 function createNewThread() {
     const newThread = {
         id: "thread_" + Date.now(),
@@ -252,34 +254,59 @@ function createNewThread() {
     threads.unshift(newThread);
     activeThreadId = newThread.id;
     saveThreadsToStorage();
-    MigrationManager.setConversation(newThread.id);
     clearChatMessages();
-    welcome?.classList.remove("hidden");
-    if (messageInput) messageInput.value = "";
+    welcome.classList.remove("hidden");
+    messageInput.value = "";
     autoResize();
     renderThreads();
-    sideMenu?.classList.remove("open");
-    messageInput?.focus();
+    sideMenu.classList.remove("open");
+    messageInput.focus();
 }
+/* =========================================================
+   LOAD THREAD
+========================================================= */
 
 function loadThread(id) {
     const thread = threads.find((item) => item.id === id);
-    if (!thread) return;
+
+    if (!thread) {
+        return;
+    }
+
     activeThreadId = id;
     saveThreadsToStorage();
+
     MigrationManager.setConversation(id);
+
     clearChatMessages();
-    if (thread.messages.length === 0) {
-        welcome?.classList.remove("hidden");
+
+    if (!thread.messages || thread.messages.length === 0) {
+        welcome.classList.remove("hidden");
     } else {
-        welcome?.classList.add("hidden");
+        welcome.classList.add("hidden");
+
         thread.messages.forEach((message) => {
-            addMessage(message.content, message.role);
+            const messageType =
+                message.role === "assistant" || message.role === "ai"
+                    ? "ai"
+                    : message.role;
+
+            addMessage(
+                message.content,
+                messageType,
+                message.message_id,
+                message.priority || 0
+            );
         });
     }
+
     renderThreads();
     sideMenu?.classList.remove("open");
 }
+
+/* =========================================================
+   DELETE THREAD
+========================================================= */
 
 function deleteThread(id, event) {
     event.stopPropagation();
@@ -296,7 +323,9 @@ function deleteThread(id, event) {
     saveThreadsToStorage();
     renderThreads();
 }
-
+/* =========================================================
+   RENDER THREADS
+========================================================= */
 function renderThreads() {
     if (!threadsList) return;
     threadsList.innerHTML = "";
@@ -332,15 +361,45 @@ newConversationButton?.addEventListener("click", async (event) => {
     }
 });
 
-if (threads.length === 0) {
-    createNewThread();
-} else {
-    if (!activeThreadId || !threads.some((thread) => thread.id === activeThreadId)) {
-        activeThreadId = threads[0].id;
+
+/* =========================================================
+   INITIALIZE CHAT HISTORY
+========================================================= */
+
+function initializeChatHistory() {
+    try {
+        if (threads.length === 0) {
+            createNewThread();
+            return;
+        }
+
+        const activeThreadExists = threads.some(
+            (thread) => thread.id === activeThreadId
+        );
+
+        if (!activeThreadExists) {
+            activeThreadId = threads[0].id;
+            saveThreadsToStorage();
+        }
+
+        loadThread(activeThreadId);
+
+    } catch (error) {
+        console.error("Chat initialization failed:", error);
+
+        showPopup(
+            "Chat Loading Error",
+            error.message || "Could not load your conversations.",
+            "error"
+        );
     }
-    loadThread(activeThreadId);
 }
 
+initializeChatHistory();
+
+/* =========================================================
+   CHAT AND INPUT CLICK HANDLERS
+========================================================= */
 chat?.addEventListener("click", () => {
     sideMenu?.classList.remove("open");
     dismissWelcome();
@@ -351,168 +410,257 @@ inputContainer?.addEventListener("click", () => {
     dismissWelcome();
 });
 
-function openPage(pageId) {
-    sideMenu.classList.remove("open");
-    apiSwitcherMenu.classList.remove("open");
-    pages.forEach((page) => {
-        page.classList.remove("open");
-    });
-    const page = document.getElementById(pageId);
-    if (!page) {
-        console.error("Page not found:", pageId);
-        return;
-    }
-    page.classList.add("open");
-    page.scrollTop = 0;
-window.scrollTo({
-    top: 0,
-    behavior: "instant"
-});
-    /* Hide message input while Settings / Themes / API is open. */
-    inputContainer.classList.add("page-hidden");
-}
-/* ========================================================= CLOSE PAGES ========================================================= */
-backButtons.forEach((button) => {
-    button.addEventListener("click", closePages);
-});
-function closePages() {
-    pages.forEach((page) => {
-        page.classList.remove("open");
-    });
-    inputContainer.classList.remove("page-hidden");
-}
 /* ========================================================= WELCOME ========================================================= */
 function dismissWelcome() {
     if (!welcome) return;
     welcome.classList.add("hidden");
 }
 
+
 async function saveMessageToServer(conversationId, role, content) {
-    if (LocalConversationStorage?.isFolderSelected()) {
+    const serverRole = role === "ai" ? "assistant" : role;
+
+    // 1. Save to the selected local archive folder
+    if (
+        typeof LocalConversationStorage !== "undefined" &&
+        LocalConversationStorage.isFolderSelected()
+    ) {
         try {
-            const localRole = role === "ai" ? "assistant" : role;
-            await LocalConversationStorage.saveMessage(conversationId, localRole, content);
+            await LocalConversationStorage.saveMessage(
+                conversationId,
+                serverRole,
+                content
+            );
         } catch (error) {
             console.error("Local file save failed:", error);
-            showPopup("Local Archive Save Failed", "This message may not be saved in your selected folder.", "error", 7000);
+
+            showPopup(
+                "Local Archive Save Failed",
+                "This message may not be saved in your selected folder.",
+                "error",
+                7000
+            );
         }
     }
+
+    // 2. Save to server-side conversation storage
     try {
-        const response = await fetch("/api/conversations/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ conversationId, role, content })
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || "Message could not be saved.");
+        const response = await fetch(
+            `/api/threads/${conversationId}/messages`,
+            {
+                method: "POST",
+                credentials: "same-origin",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    role: serverRole,
+                    content
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Message could not be saved."
+            );
         }
-        return true;
+
+        return data.message;
+
     } catch (error) {
         console.error("Conversation storage error:", error);
         return false;
     }
 }
+
 /* ========================================================= SECURE ENGINE CHAT SYSTEM ========================================================= */
+
 async function sendMessage() {
+    let loadingMessage = null;
+
     try {
-        const authResponse = await fetch("/auth/me", { credentials: "same-origin" });
+        // 1. Check authentication
+        const authResponse = await fetch("/auth/me", {
+            credentials: "same-origin"
+        });
+
         if (!authResponse.ok) {
-            showPopup("Login Required", "Please log in with Google to send AI messages.", "warning");
-            return;
-        }
-        const auth = await authResponse.json();
-        if (!auth.authenticated) {
-            showPopup("Login Required", "Please log in with Google to send AI messages.", "warning");
+            showPopup(
+                "Login Required",
+                "Please log in with Google to send AI messages.",
+                "warning"
+            );
             return;
         }
 
-        const text = messageInput.value.trim();
-        if (!text) {
-            showPopup("Empty Message", "Please enter a message before sending.", "warning");
+        const auth = await authResponse.json();
+
+        if (!auth.authenticated) {
+            showPopup(
+                "Login Required",
+                "Please log in with Google to send AI messages.",
+                "warning"
+            );
             return;
         }
-        
-        const activeApi = getActiveApi();
-        if (!activeApi) {
-            showPopup("No API Selected", "Please add an API key and select it before sending a message.", "warning");
+
+        // 2. Validate input
+        const text = messageInput.value.trim();
+
+        if (!text) {
+            showPopup(
+                "Empty Message",
+                "Please enter a message before sending.",
+                "warning"
+            );
             return;
+        }
+
+        const activeApi = getActiveApi();
+
+        if (!activeApi) {
+            showPopup(
+                "No API Selected",
+                "Please add an API key and select it before sending a message.",
+                "warning"
+            );
+            return;
+        }
+
+
+        // 3. Get active conversation
+        const currentThread = getActiveThread();
+
+        if (!currentThread) {
+            throw new Error("No active conversation was found.");
         }
 
         dismissWelcome();
-        addMessage(text, "user");
+
+        if (currentThread.messages.length === 0) {
+            currentThread.title =
+                text.slice(0, 24) + (text.length > 24 ? "..." : "");
+        }
+
+        // 4. Save user message to server
+        const savedUserMessage = await saveMessageToServer(
+            currentThread.id,
+            "user",
+            text
+        );
+
+        if (!savedUserMessage || !savedUserMessage.message_id) {
+            throw new Error("Your message could not be saved.");
+        }
+
+        currentThread.messages.push(savedUserMessage);
+
+        addMessage(
+            savedUserMessage.content,
+            "user",
+            savedUserMessage.message_id,
+            savedUserMessage.priority || 0
+        );
+
         messageInput.value = "";
         autoResize();
 
-        const currentThread = getActiveThread();
-        if (currentThread) {
-            if (currentThread.messages.length === 0) {
-                currentThread.title = text.slice(0, 24) + (text.length > 24 ? "..." : "");
-            }
-            currentThread.messages.push({ role: "user", content: text });
-            saveThreadsToStorage();
-            renderThreads();
-            await saveMessageToServer(currentThread.id, "user", text);
-        }
+        saveThreadsToStorage();
+        renderThreads();
 
-        const loadingMessage = addMessage("Thinking...", "ai");
-        
-        const conversationMessages = currentThread
-    ? currentThread.messages.map(message => ({
-        role: message.role === "ai" ? "assistant" : message.role,
-        content: message.content
-    }))
-    : [{ role: "user", content: text }];
+        // 5. Show loading indicator
+        loadingMessage = addMessage("Thinking...", "ai");
 
-const response = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-        apiId: activeApi.id,
-        messages: conversationMessages
-    })
-});
+        // 6. Prepare conversation history
+        const conversationMessages = currentThread.messages.map(
+            (message) => ({
+                role: message.role === "ai"
+                    ? "assistant"
+                    : message.role,
+                content: message.content
+            })
+        );
 
-        let data = null;
-        try {
-            data = await response.json();
-        } catch (jsonError) {
-            console.error("Could not read chat response:", jsonError);
-        }
+        // 7. Request AI response
+        const response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                apiId: activeApi.id,
+                messages: conversationMessages
+            })
+        });
 
-        loadingMessage.remove();
+        const data = await response.json().catch(() => ({}));
+
+        loadingMessage?.remove();
+        loadingMessage = null;
 
         if (!response.ok) {
-            console.error("Chat request failed:", response.status, data);
-            const errorMessage = data?.error || `The chat request failed (${response.status}).`;
-            showPopup("Chat Error", errorMessage, "error");
-            return;
+            throw new Error(
+                data?.error ||
+                `The chat request failed (${response.status}).`
+            );
         }
-      // Check context usage for the conversation that sent this request.
-const contextUsage = data?.usage?.contextBudget?.usagePercent;
 
-if (Number.isFinite(contextUsage)) {
-    window.MigrationManager?.checkUsageForConversation(
-        currentThread?.id,
-        contextUsage
-    );
-}
+        // 8. Check migration usage
+        const contextUsage = data?.usage?.contextBudget?.usagePercent;
+
+        if (Number.isFinite(contextUsage)) {
+            window.MigrationManager?.checkUsageForConversation(
+                currentThread.id,
+                contextUsage
+            );
+        }
+
+        // 9. Validate AI response
         const aiResponse = data?.reply;
+
         if (typeof aiResponse !== "string" || !aiResponse.trim()) {
-            showPopup("Empty Response", "The server did not return an AI message.", "warning");
-            return;
+
+            throw new Error("The server did not return an AI message.");
         }
 
-        addMessage(aiResponse, "ai");
+        // 10. Save AI response to server
+        const savedAIMessage = await saveMessageToServer(
+            currentThread.id,
+            "assistant",
+            aiResponse
+        );
 
-        if (currentThread) {
-            currentThread.messages.push({ role: "ai", content: aiResponse });
-            saveThreadsToStorage();
-            await saveMessageToServer(currentThread.id, "assistant", aiResponse);
+        if (!savedAIMessage || !savedAIMessage.message_id) {
+            throw new Error("The AI response could not be saved.");
         }
+
+        currentThread.messages.push(savedAIMessage);
+
+        addMessage(
+            savedAIMessage.content,
+            "ai",
+            savedAIMessage.message_id,
+            savedAIMessage.priority || 0
+        );
+
+        // 11. Update conversation storage and sidebar
+        saveThreadsToStorage();
+        renderThreads();
+
     } catch (error) {
+        loadingMessage?.remove();
+
         console.error("SEND MESSAGE ERROR:", error);
-        showPopup("Something Went Wrong", error?.message || "The message could not be sent. Check configurations.", "error");
+
+        showPopup(
+            "Something Went Wrong",
+            error?.message ||
+                "The message could not be sent. Check configurations.",
+            "error"
+        );
     }
 }
 
