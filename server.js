@@ -18,6 +18,7 @@ const { encryptApiKey, decryptApiKey } = require("./encryption.js");
 // require("dotenv").config(); by leder oct 17
 const express = require("express");
 const session = require("express-session");
+const NeonSessionStore = require("./postgresSessionStore");
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const path = require("path");
@@ -30,17 +31,29 @@ const { selectPillarMessages } = require("./pillarSelection");
 const app = express();
 const PORT = process.env.PORT || 3000;
 // ============================================
-// SESSION
+// PERSISTENT SESSION STORAGE
+// Vercel instances do not share process memory, so the default
+// express-session MemoryStore cannot reliably persist logins.
+// Store sessions in Neon so every instance can read the same session.
 // ============================================
+app.set("trust proxy", 1);
+
+const sessionStore = new NeonSessionStore(pool);
+
 app.use(
     session({
+        name: "cloudai.sid",
+        store: sessionStore,
         secret: process.env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
+        rolling: true,
+        proxy: true,
         cookie: {
             httpOnly: true,
             sameSite: "lax",
-            secure: false
+            secure: process.env.NODE_ENV === "production",
+            maxAge: 7 * 24 * 60 * 60 * 1000
         }
     })
 );
