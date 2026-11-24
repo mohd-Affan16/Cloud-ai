@@ -20,7 +20,7 @@ function message(id, role, content, priority = 0) {
 test("Pillar 2 keeps an oversized starred message selected for separate preservation", () => {
     const messages = [
         message("ordinary", "user", "A short ordinary message."),
-        message("starred-large", "user", "Important requirement ".repeat(700), 2),
+        message("starred-large", "user", "Important requirement ".repeat(1500), 2),
         message("ordinary-2", "assistant", "A second ordinary message.")
     ];
 
@@ -36,7 +36,7 @@ test("Pillar 2 keeps an oversized starred message selected for separate preserva
 test("Pillar 1 migration retains its existing starred-message overflow guard", () => {
     const messages = [
         message("ordinary", "user", "A short ordinary message."),
-        message("starred-large", "user", "Important requirement ".repeat(700), 2)
+        message("starred-large", "user", "Important requirement ".repeat(1500), 2)
     ];
 
     const result = selectPillarMessages(messages, "migration", provider, model);
