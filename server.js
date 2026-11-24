@@ -503,7 +503,12 @@ app.put("/api/threads/:threadId/compression", async (req, res) => {
             return res.status(429).json({ error: "Manual compression is available after the 24-hour cooldown.", retryAfterMs });
         }
         const normalizedActive = conversationRepository.normalizeMessages(activeMessages);
-        if (normalizedActive.length < 1 || normalizedActive.length > thread.messages.length) return res.status(400).json({ error: "The compressed conversation cannot contain more messages than the current history." });
+        const starredSource = thread.messages.filter(message => message.priority > 0);
+        const summaryMessages = normalizedActive.filter(message => message.priority <= 0);
+        if (normalizedActive.length !== starredSource.length + 1 || summaryMessages.length !== 1 ||
+            !["assistant", "ai"].includes(summaryMessages[0]?.role)) {
+            return res.status(400).json({ error: "Compression must retain all starred messages and exactly one assistant summary." });
+        }
         const activeById = new Map(normalizedActive.map(message => [message.message_id, message]));
         const missingStarred = thread.messages.some(source => {
             if (!(source.priority > 0)) return false;
@@ -568,6 +573,7 @@ app.get("/api/threads/:threadId/pillar-source", async (req, res) => {
             omittedMessageCount: selection.omittedMessageCount,
             overflowStarred: selection.overflowStarred,
             contextCapacity: selection.capacity,
+            inputCapacity: selection.inputCapacity,
             capacitySource: selection.capacitySource,
             estimateSources: selection.estimateSources,
             previousUsage: thread.lastUsage

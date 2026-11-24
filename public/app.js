@@ -760,22 +760,26 @@ async function buildPillarRequest(thread, operation) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || "Could not load the saved conversation for context management.");
-    if (data.overflowStarred?.length) {
+    if (operation !== "compression" && data.overflowStarred?.length) {
         const tooLarge = data.overflowStarred.some(message => message.estimatedTokens > data.tokenBudget);
         throw new Error(`${data.overflowStarred.length} starred message${data.overflowStarred.length === 1 ? "" : "s"} could not fit in the ${Number(data.tokenBudget).toLocaleString()} token estimate budget${tooLarge ? ", including a message larger than the entire budget" : ""}. Shorten or unstar messages before continuing; none were silently dropped.`);
     }
     const messages = Array.isArray(data.selectedMessages) ? data.selectedMessages : [];
-    if (messages.length < 2) throw new Error("This conversation does not have enough saved messages to migrate or compress.");
+    const allMessages = Array.isArray(data.allMessages) ? data.allMessages : messages;
+    if ((operation === "compression" ? allMessages.length : messages.length) < 2) {
+        throw new Error("This conversation does not have enough saved messages to migrate or compress.");
+    }
     const history = messages.map(message =>
         `[${message.role === "user" ? "USER" : "ASSISTANT (unverified unless user-confirmed)"}; priority ${message.priority}; ${message.estimateSource.replaceAll("_", " ")} ${message.estimatedTokens} tokens]\n${message.content}`
     ).join("\n\n");
     return {
         apiId: activeApi.id,
         messages,
-        allMessages: Array.isArray(data.allMessages) ? data.allMessages : messages,
+        allMessages,
         tokenEstimate: Number(data.totalSourceTokens) || 0,
         history,
         budget: Number(data.tokenBudget) || 0,
+        inputCapacity: Number(data.inputCapacity) || 0,
         selectedTokens: Number(data.selectedTokens) || 0,
         starredTokenEstimate: Number(data.starredTokens) || 0,
         sourceMessageCount: Number(data.sourceMessageCount) || messages.length,
@@ -867,7 +871,7 @@ function showCompressionReview(summary, metadata) {
         const title = document.createElement("h2");
         title.textContent = "Review Compressed Context";
         const details = document.createElement("p");
-        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()} (${metadata.estimateSource}). Model input budget: ${metadata.selectedTokens.toLocaleString()} / ${metadata.tokenBudget.toLocaleString()} estimated tokens (${metadata.capacitySource}).`;
+        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()} (${metadata.estimateSource}). Estimated usable input capacity: ${metadata.inputCapacity.toLocaleString()} tokens (${metadata.capacitySource}). Per-chunk source target: ${metadata.tokenBudget.toLocaleString()} tokens. All values are estimates.`;
         const preview = document.createElement("div");
         preview.className = "pillar-review-preview markdown-content";
         renderAssistantMarkdown(preview, summary);
@@ -1035,27 +1039,43 @@ async function runCompression() {
             summaries.push(part.reply);
         }
         const finalInstruction = "Synthesize ALL supplied part summaries into one reusable context record that lets a new assistant continue this exact conversation without asking the user to repeat important information. Do not turn the result into a topic list. Preserve every distinct requirement, constraint, preference, decision, reason, technical detail, identifier, error, completed action, test result, unresolved issue, and next step. Retain specific values and names exactly when supplied. Distinguish user-confirmed facts and decisions from assistant suggestions or unverified claims; never upgrade an assistant suggestion into a confirmed decision. Merge duplicates, but do not discard unique details merely to make the summary shorter. Include these sections: Objective; User Requirements and Constraints; Decisions and Rationale; Important Conversation Details; Technical Context; Completed Work and Outcomes; Current State; Unresolved Issues and Risks; Pending Tasks / Next Steps. If a section has no supported information, write Not specified. Do not invent facts or import information from outside the supplied summaries.";
+        const summaryTokenEstimate = value => Math.ceil(String(value || "").length / 3.5) + 64;
+        const mergeInputLimit = Math.max(1200, Math.floor((request.inputCapacity || request.budget * 3) * 0.6));
         let round = 1;
-        while (summaries.length > 1) {
+
+        // Avoid repeatedly summarizing already-small summaries. Only use another
+        // reduction pass when the combined summaries would exceed a conservative
+        // share of the model's actual input capacity.
+        while (summaries.length > 1 &&
+            summaries.reduce((total, summary) => total + summaryTokenEstimate(summary), 0) > mergeInputLimit) {
             const reduced = [];
-            for (let index = 0; index < summaries.length; index += 4) {
-                const group = summaries.slice(index, index + 4);
-                if (group.length === 1 && summaries.length <= 4) {
-                    reduced.push(group[0]);
-                    continue;
-                }
+            for (let index = 0; index < summaries.length; index += 3) {
+                const group = summaries.slice(index, index + 3);
                 const groupText = group.map((summary, offset) =>
-                    `SUMMARY ${index + offset + 1}:\\n${summary}`
+                    `SOURCE SUMMARY ${index + offset + 1} (preserve its unique details):\\n${summary}`
                 ).join("\\n\\n");
                 setContextActionStatus(`Combining compression summaries (pass ${round})…`);
-                const merged = await generatePillarContent(request.apiId, thread.id, groupText, finalInstruction, 700);
+                const mergeWordTarget = Math.min(1800, Math.max(700, group.length * 500));
+                const merged = await generatePillarContent(request.apiId, thread.id, groupText, finalInstruction, mergeWordTarget);
                 reduced.push(merged.reply);
             }
-            if (reduced.length >= summaries.length) break;
+            if (reduced.length >= summaries.length) {
+                throw new Error("Compression could not safely reduce the intermediate summaries. The original conversation is unchanged.");
+            }
             summaries = reduced;
             round++;
         }
-        const compressed = summaries[0];
+
+        let compressed = summaries[0];
+        if (summaries.length > 1) {
+            const finalSource = summaries.map((summary, index) =>
+                `SOURCE SUMMARY ${index + 1} (retain every distinct fact and decision):\\n${summary}`
+            ).join("\\n\\n");
+            setContextActionStatus("Creating the final compressed context…");
+            const finalWordTarget = Math.min(2400, Math.max(900, summaries.length * 400));
+            const finalResult = await generatePillarContent(request.apiId, thread.id, finalSource, finalInstruction, finalWordTarget);
+            compressed = finalResult.reply;
+        }
         const tokenEstimateResponse = await fetch("/api/token-estimate", {
             method: "POST", credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
@@ -1073,6 +1093,7 @@ async function runCompression() {
             sourceMessageCount: request.sourceMessageCount,
             selectedTokens: request.selectedTokens,
             tokenBudget: request.budget,
+            inputCapacity: request.inputCapacity,
             capacitySource: request.capacitySource,
             estimateSource: tokenEstimateData.source
         });
