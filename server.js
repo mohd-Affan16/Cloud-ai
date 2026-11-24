@@ -22,8 +22,8 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const path = require("path");
 const fs = require("fs");
-const { getConversationDirectory } = require("./conversationstorage.js");
-const { appendMessage } = require("./conversationstorage.js");
+const conversationRepository = require("./conversationRepository.js");
+const { selectPillarMessages } = require("./pillarSelection");
 // ============================================
 // CREATE EXPRESS APP
 // ============================================
@@ -87,98 +87,86 @@ passport.deserializeUser((user, done) => {
 // ============================================
 app.use(express.json({ limit: "10mb" }));
 
-function getAuthenticatedThreadFile(userId, threadId, create = false) {
-    if (typeof threadId !== "string" || !/^thread_[a-zA-Z0-9_-]{1,100}$/.test(threadId)) {
-        throw new Error("Invalid conversation ID.");
+function readJsonFile(filePath, fallback = null) {
+    try { return fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf8")) : fallback; }
+    catch (error) { console.warn("Ignoring malformed legacy conversation metadata:", path.basename(filePath), error.message); return fallback; }
+}
+
+function readLegacyThread(userId, threadId) {
+    conversationRepository.validateThreadId(threadId);
+    const hashedUser = require("crypto").createHash("sha256").update(String(userId)).digest("hex");
+    const roots = [
+        path.join(__dirname, "conversations", `user_${hashedUser}`, threadId),
+        path.join(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`, threadId)
+    ];
+    const messages = [];
+    const seen = new Set();
+    let metadata = {};
+    let compression = null;
+    for (const directory of roots) {
+        if (!fs.existsSync(directory)) continue;
+        const currentMetadata = readJsonFile(path.join(directory, "metadata.json"), {});
+        if (currentMetadata && typeof currentMetadata === "object") metadata = { ...metadata, ...currentMetadata };
+        const currentCompression = readJsonFile(path.join(directory, "compression.json"));
+        if (currentCompression && typeof currentCompression.summary === "string" && currentCompression.summary.trim()) {
+            const stamp = conversationRepository.validTimestamp(currentCompression.lastSuccessfulAt);
+            compression = { ...currentCompression, lastSuccessfulAt: stamp };
+        }
+        const files = fs.readdirSync(directory).filter(name => /^day_\d+\.jsonl$/.test(name) || name === "conversation.jsonl").sort();
+        for (const name of files) {
+            const lines = fs.readFileSync(path.join(directory, name), "utf8").split(/\r?\n/).filter(Boolean);
+            lines.forEach((line, index) => {
+                try {
+                    const item = JSON.parse(line);
+                    if (!["user", "assistant", "ai"].includes(item.role) || typeof item.content !== "string") return;
+                    const fingerprint = require("crypto").createHash("sha256").update(`${item.role}\n${item.timestamp || ""}\n${item.content}`).digest("hex");
+                    const messageKey = item.message_id ? `id:${item.message_id}` : `content:${fingerprint}`;
+                    if (seen.has(messageKey) || seen.has(`content:${fingerprint}`)) return;
+                    seen.add(messageKey);
+                    seen.add(`content:${fingerprint}`);
+                    messages.push({
+                        message_id: item.message_id || `${threadId}_legacy_${fingerprint.slice(0, 20)}_${index}`,
+                        role: item.role === "ai" ? "assistant" : item.role,
+                        content: item.content,
+                        priority: Number.isInteger(item.priority) && item.priority >= 0 && item.priority <= 3 ? item.priority : 0,
+                        timestamp: item.timestamp || null
+                    });
+                } catch (error) {
+                    console.warn("Skipping malformed legacy message:", name, index + 1, error.message);
+                }
+            });
+        }
     }
-    const userDirectory = path.resolve(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
-    const threadDirectory = path.resolve(userDirectory, threadId);
-    if (!threadDirectory.startsWith(userDirectory + path.sep)) throw new Error("Invalid conversation path.");
-    if (create) fs.mkdirSync(threadDirectory, { recursive: true });
-    return { threadDirectory, filePath: path.join(threadDirectory, "conversation.jsonl") };
+    if (!messages.length && !compression && !Object.keys(metadata).length) return null;
+    return { title: metadata.title || threadId, messages, compression, archived: metadata.archived === true };
 }
 
-function getAuthenticatedArchiveDirectory(userId, create = false) {
-    const userDirectory = path.resolve(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`);
-    const archiveDirectory = path.resolve(userDirectory, "archives");
-    if (!archiveDirectory.startsWith(userDirectory + path.sep)) throw new Error("Invalid archive path.");
-    if (create) fs.mkdirSync(archiveDirectory, { recursive: true });
-    return archiveDirectory;
+async function getStoredThread(userId, threadId) {
+    const current = await conversationRepository.getThread(userId, threadId);
+    if (current) return current;
+    const legacy = readLegacyThread(userId, threadId);
+    return legacy ? conversationRepository.ensureThread(userId, threadId, legacy) : null;
 }
 
-function readAuthenticatedThread(userId, threadId) {
-    const { filePath } = getAuthenticatedThreadFile(userId, threadId);
-    if (!fs.existsSync(filePath)) return null;
-    const messages = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map((line, index) => {
-        const record = JSON.parse(line);
-        return {
-            message_id: record.message_id || `${threadId}_${index}`,
-            role: record.role,
-            content: record.content,
-            priority: Number.isInteger(record.priority) ? record.priority : 0,
-            timestamp: record.timestamp || null
-        };
-    });
-    const metadataPath = path.join(path.dirname(filePath), "metadata.json");
-    const metadata = fs.existsSync(metadataPath) ? JSON.parse(fs.readFileSync(metadataPath, "utf8")) : {};
-    return { id: threadId, title: metadata.title || threadId, messages, archived: metadata.archived === true };
-}
-
-function appendAuthenticatedThreadMessage(userId, threadId, role, content) {
-    const { filePath } = getAuthenticatedThreadFile(userId, threadId, true);
-    const existingMessages = readAuthenticatedThread(userId, threadId)?.messages || [];
-    const record = {
-        message_id: `${threadId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-        role,
-        content,
-        priority: 0,
-        timestamp: new Date().toISOString()
-    };
-    fs.appendFileSync(filePath, JSON.stringify(record) + "\n", "utf8");
-    return record;
-}
-
-function updateAuthenticatedMessagePriority(userId, threadId, messageId, priority) {
-    const { filePath } = getAuthenticatedThreadFile(userId, threadId);
-    if (!fs.existsSync(filePath)) throw new Error("Conversation not found.");
-    const records = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
-    const record = records.find(item => item.message_id === messageId);
-    if (!record) throw new Error("Message not found.");
-    const previousPriority = Number.isInteger(record.priority) ? record.priority : 0;
-    const counts = records.reduce((result, item) => {
-        const value = Number.isInteger(item.priority) ? item.priority : 0;
-        result[value] = (result[value] || 0) + 1;
-        return result;
-    }, {});
-    const caps = { 1: 10, 2: 7, 3: 3 };
-    const totalStarred = records.filter(item => Number.isInteger(item.priority) && item.priority > 0).length;
-    if (priority > 0 && priority !== previousPriority && ((counts[priority] || 0) >= caps[priority] || totalStarred >= 20)) {
-        throw new Error(`Priority ${priority} limit reached for this conversation.`);
+async function importLegacyArchives(userId) {
+    const hashedUser = require("crypto").createHash("sha256").update(String(userId)).digest("hex");
+    const roots = [
+        path.join(__dirname, "conversations", `user_${hashedUser}`, "archives"),
+        path.join(__dirname, "conversations", `user_${String(userId).replace(/[^a-zA-Z0-9_-]/g, "_")}`, "archives")
+    ];
+    for (const directory of roots) {
+        if (!fs.existsSync(directory)) continue;
+        for (const name of fs.readdirSync(directory).filter(file => /^archive_[a-zA-Z0-9_-]+\.json$/.test(file))) {
+            const record = readJsonFile(path.join(directory, name));
+            if (!record || !/^thread_[a-zA-Z0-9_-]{1,100}$/.test(record.sourceThreadId || "") || !Array.isArray(record.messages)) continue;
+            try {
+                const title = String(record.title || "Original: Conversation").slice(0, 140);
+                await conversationRepository.createArchive(String(userId), record.sourceThreadId, title, record.messages);
+            } catch (error) {
+                console.warn("Could not import a legacy archive:", name, error.message);
+            }
+        }
     }
-    record.priority = priority;
-    fs.writeFileSync(filePath, records.map(item => JSON.stringify(item)).join("\n") + "\n", "utf8");
-    return record;
-}
-
-function writeAuthenticatedThreadMessages(userId, threadId, messages) {
-    const { filePath } = getAuthenticatedThreadFile(userId, threadId, true);
-    const records = messages.map((message, index) => ({
-        message_id: message.message_id || `${threadId}_${index}`,
-        role: message.role === "ai" ? "assistant" : message.role,
-        content: String(message.content || ""),
-        priority: Number.isInteger(message.priority) ? message.priority : 0,
-        timestamp: message.timestamp || new Date().toISOString()
-    }));
-    const temporaryPath = `${filePath}.tmp`;
-    fs.writeFileSync(temporaryPath, records.map(record => JSON.stringify(record)).join("\n") + (records.length ? "\n" : ""), "utf8");
-    try {
-        fs.renameSync(temporaryPath, filePath);
-    } catch (error) {
-        if (!fs.existsSync(filePath) || !["EPERM", "EEXIST"].includes(error.code)) throw error;
-        fs.copyFileSync(temporaryPath, filePath);
-        fs.unlinkSync(temporaryPath);
-    }
-    return records.length;
 }
 
 /* ============================================
@@ -260,7 +248,18 @@ app.post("/api/keys", async (req, res) => {
    GET ONE CONVERSATION
    ============================================ */
 
-app.get("/api/threads/:threadId", (req, res) => {
+app.get("/api/threads", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    try {
+        const threads = await conversationRepository.listThreads(String(req.user.id));
+        return res.json({ threads });
+    } catch (error) {
+        console.error("Conversation list retrieval failed:", error.message);
+        return res.status(500).json({ error: "Could not retrieve saved conversations." });
+    }
+});
+
+app.get("/api/threads/:threadId", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -268,7 +267,7 @@ app.get("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        const thread = readAuthenticatedThread(String(req.user.id), req.params.threadId);
+        const thread = await getStoredThread(String(req.user.id), req.params.threadId);
 
         if (!thread) {
             return res.status(404).json({
@@ -294,7 +293,7 @@ app.get("/api/threads/:threadId", (req, res) => {
    RENAME CONVERSATION
    ============================================ */
 
-app.patch("/api/threads/:threadId", (req, res) => {
+app.patch("/api/threads/:threadId", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -310,7 +309,7 @@ app.patch("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        const thread = readAuthenticatedThread(String(req.user.id), req.params.threadId);
+        const thread = await getStoredThread(String(req.user.id), req.params.threadId);
 
         if (!thread) {
             return res.status(404).json({
@@ -318,13 +317,11 @@ app.patch("/api/threads/:threadId", (req, res) => {
             });
         }
 
-        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId, true);
-        fs.writeFileSync(path.join(threadDirectory, "metadata.json"), JSON.stringify({ title: title.trim(), archived: thread.archived }), "utf8");
-        thread.title = title.trim();
+        const updated = await conversationRepository.updateTitle(String(req.user.id), req.params.threadId, title.trim());
 
         return res.json({
             success: true,
-            thread
+            thread: updated
         });
 
     } catch (error) {
@@ -342,7 +339,7 @@ app.patch("/api/threads/:threadId", (req, res) => {
    ARCHIVE CONVERSATION
    ============================================ */
 
-app.post("/api/threads/:threadId/archive", (req, res) => {
+app.post("/api/threads/:threadId/archive", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -350,8 +347,9 @@ app.post("/api/threads/:threadId/archive", (req, res) => {
     }
 
     try {
-        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
-        fs.writeFileSync(path.join(threadDirectory, "metadata.json"), JSON.stringify({ archived: true, archivedAt: Date.now() }), "utf8");
+        const found = await getStoredThread(String(req.user.id), req.params.threadId);
+        if (!found) return res.status(404).json({ error: "Conversation not found." });
+        await conversationRepository.setArchived(String(req.user.id), req.params.threadId, true);
 
         return res.json({
             success: true,
@@ -371,7 +369,7 @@ app.post("/api/threads/:threadId/archive", (req, res) => {
    RESTORE CONVERSATION
    ============================================ */
 
-app.post("/api/threads/:threadId/restore", (req, res) => {
+app.post("/api/threads/:threadId/restore", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -379,14 +377,9 @@ app.post("/api/threads/:threadId/restore", (req, res) => {
     }
 
     try {
-        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
-        const metadataPath = path.join(threadDirectory, "metadata.json");
-        if (fs.existsSync(metadataPath)) {
-            const metadata = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
-            delete metadata.archived;
-            delete metadata.archivedAt;
-            fs.writeFileSync(metadataPath, JSON.stringify(metadata), "utf8");
-        }
+        const found = await getStoredThread(String(req.user.id), req.params.threadId);
+        if (!found) return res.status(404).json({ error: "Conversation not found." });
+        await conversationRepository.setArchived(String(req.user.id), req.params.threadId, false);
 
         return res.json({
             success: true,
@@ -406,7 +399,7 @@ app.post("/api/threads/:threadId/restore", (req, res) => {
    DELETE CONVERSATION PERMANENTLY
    ============================================ */
 
-app.delete("/api/threads/:threadId", (req, res) => {
+app.delete("/api/threads/:threadId", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -414,8 +407,7 @@ app.delete("/api/threads/:threadId", (req, res) => {
     }
 
     try {
-        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
-        if (fs.existsSync(threadDirectory)) fs.rmSync(threadDirectory, { recursive: true, force: true });
+        await conversationRepository.deleteThread(String(req.user.id), req.params.threadId);
 
         return res.json({
             success: true,
@@ -435,14 +427,14 @@ app.delete("/api/threads/:threadId", (req, res) => {
    SAVE MESSAGE TO CONVERSATION
    ============================================ */
 
-app.post("/api/threads/:threadId/messages", (req, res) => {
+app.post("/api/threads/:threadId/messages", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
         });
     }
 
-    const { role, content } = req.body;
+    const { role, content, title } = req.body;
 
     if (!["user", "assistant"].includes(role)) {
         return res.status(400).json({
@@ -457,7 +449,10 @@ app.post("/api/threads/:threadId/messages", (req, res) => {
     }
 
     try {
-        const message = appendAuthenticatedThreadMessage(String(req.user.id), req.params.threadId, role, content);
+        const userId = String(req.user.id);
+        const existing = await getStoredThread(userId, req.params.threadId);
+        if (!existing) await conversationRepository.ensureThread(userId, req.params.threadId, { title: typeof title === "string" && title.trim() ? title.trim().slice(0, 120) : "New Conversation" });
+        const message = await conversationRepository.appendMessage(userId, req.params.threadId, role, content, title);
 
         return res.status(201).json({
             success: true,
@@ -467,54 +462,115 @@ app.post("/api/threads/:threadId/messages", (req, res) => {
     } catch (error) {
         console.error("Message storage failed:", error.message);
 
-        return res.status(400).json({
-            error: error.message || "Could not save message."
+        return res.status(error.message === "Invalid conversation ID." || error.message === "Invalid message role." || error.message === "Message content cannot be empty." ? 400 : 500).json({
+            error: error.message === "Invalid conversation ID." || error.message === "Invalid message role." || error.message === "Message content cannot be empty."
+                ? error.message
+                : "Could not save the message to persistent storage."
         });
     }
 });
 
-app.put("/api/threads/:threadId/compression", (req, res) => {
+app.put("/api/threads/:threadId/compression", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({ error: "Please log in first." });
     }
-    const { summary, sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount } = req.body || {};
+    const { summary, sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount, activeMessages, originalTitle } = req.body || {};
     if (typeof summary !== "string" || !summary.trim() || summary.length > 30000 ||
         !Number.isFinite(sourceTokenEstimate) || !Number.isFinite(compressedTokenEstimate) ||
-        compressedTokenEstimate >= sourceTokenEstimate || !Number.isInteger(sourceMessageCount) || sourceMessageCount < 1) {
+        compressedTokenEstimate >= sourceTokenEstimate || !Number.isInteger(sourceMessageCount) || sourceMessageCount < 1 || !Array.isArray(activeMessages)) {
         return res.status(400).json({ error: "A valid, smaller compression summary is required." });
     }
     try {
-        const { threadDirectory } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId, true);
-        const filePath = path.join(threadDirectory, "compression.json");
-        const previous = fs.existsSync(filePath) ? JSON.parse(fs.readFileSync(filePath, "utf8")) : {};
+        const userId = String(req.user.id);
+        const thread = await getStoredThread(userId, req.params.threadId);
+        if (!thread) return res.status(404).json({ error: "The original conversation was not found." });
         const now = Date.now();
-        if (previous.lastSuccessfulAt && now - previous.lastSuccessfulAt < 24 * 60 * 60 * 1000) {
-            const retryAfterMs = 24 * 60 * 60 * 1000 - (now - previous.lastSuccessfulAt);
+        const retryAfterMs = conversationRepository.cooldownRemaining(thread.compression?.lastSuccessfulAt, now);
+        if (retryAfterMs > 0) {
             return res.status(429).json({ error: "Manual compression is available after the 24-hour cooldown.", retryAfterMs });
         }
-        const compression = { summary: summary.trim(), sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount, lastSuccessfulAt: now };
-        fs.writeFileSync(filePath, JSON.stringify(compression, null, 2), "utf8");
-        return res.json({ success: true, compression });
+        const normalizedActive = conversationRepository.normalizeMessages(activeMessages);
+        if (normalizedActive.length < 1 || normalizedActive.length > thread.messages.length) return res.status(400).json({ error: "The compressed conversation cannot contain more messages than the current history." });
+        const compression = { summary: summary.trim(), sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount, lastSuccessfulAt: now, estimateSource: req.body.estimateSource || "estimated" };
+        const title = `Original: ${String(originalTitle || thread.title || "Conversation").replace(/^Original:\s*/i, "").trim().slice(0, 120)}`;
+        const sourceDigest = require("crypto").createHash("sha256").update(JSON.stringify(thread.messages)).digest("hex");
+        const result = await conversationRepository.compressThread(userId, req.params.threadId, {
+            compression, activeMessages: normalizedActive, title, archiveId: `archive_${now}_${require("crypto").randomBytes(5).toString("hex")}`, sourceDigest
+        });
+        if (!result.thread_exists) return res.status(404).json({ error: "The original conversation was not found." });
+        if (!result.cooldown_ok) return res.status(429).json({ error: "Manual compression is available after the 24-hour cooldown." });
+        if (!result.compression) throw new Error("Compression could not be committed. The original conversation remains unchanged.");
+        return res.json({ success: true, compression: result.compression, archiveId: result.archive_id });
     } catch (error) {
         console.error("Compression storage failed:", error.message);
-        return res.status(400).json({ error: error.message || "Could not store compression summary." });
+        return res.status(500).json({ error: error.message || "Could not store compression summary." });
     }
 });
 
-app.get("/api/threads/:threadId/compression", (req, res) => {
+app.get("/api/threads/:threadId/compression", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({ error: "Please log in first." });
     }
     try {
-        const { filePath } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
-        if (!fs.existsSync(filePath)) return res.json({ compression: null });
-        return res.json({ compression: JSON.parse(fs.readFileSync(filePath, "utf8")) });
+        const thread = await getStoredThread(String(req.user.id), req.params.threadId);
+        if (!thread) return res.json({ compression: null });
+        return res.json({ compression: thread.compression || null });
     } catch (error) {
         return res.status(400).json({ error: error.message || "Could not load compression summary." });
     }
 });
 
-app.post("/api/threads/:threadId/archive-original", (req, res) => {
+app.get("/api/threads/:threadId/pillar-source", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    const apiId = String(req.query.apiId || "");
+    const operation = req.query.operation === "migration" ? "migration" : req.query.operation === "compression" ? "compression" : null;
+    if (!apiId || !operation) return res.status(400).json({ error: "Select a saved model and a valid context operation." });
+    try {
+        const userId = String(req.user.id);
+        const thread = await getStoredThread(userId, req.params.threadId);
+        if (!thread) return res.status(404).json({ error: "Conversation history was not found." });
+        const key = await pool.query("SELECT provider,model FROM user_api_keys WHERE id=$1 AND user_id=$2", [apiId, userId]);
+        if (!key.rows[0]) return res.status(404).json({ error: "Saved API key not found." });
+        const selection = selectPillarMessages(thread.messages, operation, key.rows[0].provider, key.rows[0].model, thread.lastUsage);
+        return res.json({
+            thread: { id: thread.id, title: thread.title, compression: thread.compression },
+            selectedMessages: selection.messages,
+            tokenBudget: selection.tokenBudget,
+            selectedTokens: selection.selectedTokens,
+            totalSourceTokens: selection.totalSourceTokens,
+            starredTokens: selection.starredTokens,
+            sourceMessageCount: selection.sourceMessageCount,
+            starredMessageCount: selection.starredMessageCount,
+            omittedMessageCount: selection.omittedMessageCount,
+            overflowStarred: selection.overflowStarred,
+            contextCapacity: selection.capacity,
+            capacitySource: selection.capacitySource,
+            estimateSources: selection.estimateSources,
+            previousUsage: thread.lastUsage
+        });
+    } catch (error) {
+        console.error("Pillar source retrieval failed:", error.message);
+        return res.status(500).json({ error: "Could not prepare the conversation for this context operation." });
+    }
+});
+
+app.post("/api/token-estimate", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    const { apiId, text } = req.body || {};
+    if (typeof apiId !== "string" || typeof text !== "string" || text.length > 30000) return res.status(400).json({ error: "A saved model and valid text are required for token estimation." });
+    try {
+        const key = await pool.query("SELECT provider,model FROM user_api_keys WHERE id=$1 AND user_id=$2", [apiId, String(req.user.id)]);
+        if (!key.rows[0]) return res.status(404).json({ error: "Saved API key not found." });
+        const estimate = estimateMessageTokens({ role: "assistant", content: text }, key.rows[0].provider, key.rows[0].model);
+        if (!estimate) return res.status(422).json({ error: "Token estimation is unavailable for this model." });
+        return res.json({ estimatedTokens: estimate.totalTokens, source: estimate.source });
+    } catch (error) {
+        console.error("Token estimation failed:", error.message);
+        return res.status(500).json({ error: "Could not estimate tokens for this text." });
+    }
+});
+
+app.post("/api/threads/:threadId/archive-original", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
     const { messages, originalTitle } = req.body || {};
     if (!Array.isArray(messages) || messages.length > 1000 || !messages.every(message =>
@@ -522,45 +578,22 @@ app.post("/api/threads/:threadId/archive-original", (req, res) => {
     )) return res.status(400).json({ error: "Invalid original conversation messages." });
     try {
         const userId = String(req.user.id);
-        const sourceThread = readAuthenticatedThread(userId, req.params.threadId);
+        const sourceThread = await getStoredThread(userId, req.params.threadId);
         if (!sourceThread) return res.status(404).json({ error: "The original conversation was not found on the server." });
-        const archiveDirectory = getAuthenticatedArchiveDirectory(userId, true);
-        const archiveId = `archive_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
         const title = `Original: ${String(originalTitle || sourceThread.title || "Conversation").replace(/^Original:\s*/i, "").trim().slice(0, 120)}`;
-        const archive = {
-            id: archiveId,
-            title,
-            sourceThreadId: req.params.threadId,
-            archivedAt: new Date().toISOString(),
-            messages: messages.map(message => ({
-                role: message.role === "ai" ? "assistant" : message.role,
-                content: message.content,
-                priority: Number.isInteger(message.priority) ? message.priority : 0,
-                message_id: typeof message.message_id === "string" ? message.message_id : null,
-                timestamp: message.timestamp || null
-            }))
-        };
-        const filePath = path.join(archiveDirectory, `${archiveId}.json`);
-        fs.writeFileSync(filePath, JSON.stringify(archive, null, 2), { encoding: "utf8", flag: "wx" });
-        return res.json({ success: true, archive: { id: archive.id, title: archive.title, sourceThreadId: archive.sourceThreadId, archivedAt: archive.archivedAt, messageCount: archive.messages.length } });
+        const archive = await conversationRepository.createArchive(userId, req.params.threadId, title, sourceThread.messages);
+        return res.json({ success: true, archive });
     } catch (error) {
         console.error("Original conversation archive failed:", error.message);
         return res.status(400).json({ error: error.message || "Could not archive the original conversation." });
     }
 });
 
-app.get("/api/archives", (req, res) => {
+app.get("/api/archives", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
     try {
-        const archiveDirectory = getAuthenticatedArchiveDirectory(String(req.user.id));
-        if (!fs.existsSync(archiveDirectory)) return res.json({ archives: [] });
-        const archives = fs.readdirSync(archiveDirectory)
-            .filter(name => /^archive_[a-zA-Z0-9_-]+\.json$/.test(name))
-            .map(name => {
-                const record = JSON.parse(fs.readFileSync(path.join(archiveDirectory, name), "utf8"));
-                return { id: record.id, title: record.title };
-            })
-            .sort((a, b) => String(b.archivedAt).localeCompare(String(a.archivedAt)));
+        await importLegacyArchives(String(req.user.id));
+        const archives = await conversationRepository.getArchives(String(req.user.id));
         return res.json({ archives });
     } catch (error) {
         console.error("Archive list load failed:", error.message);
@@ -568,13 +601,12 @@ app.get("/api/archives", (req, res) => {
     }
 });
 
-app.get("/api/archives/:archiveId", (req, res) => {
+app.get("/api/archives/:archiveId", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
     if (!/^archive_[a-zA-Z0-9_-]{1,120}$/.test(req.params.archiveId)) return res.status(400).json({ error: "Invalid archive ID." });
     try {
-        const filePath = path.join(getAuthenticatedArchiveDirectory(String(req.user.id)), `${req.params.archiveId}.json`);
-        if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Archived conversation not found." });
-        const record = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        const record = await conversationRepository.getArchive(String(req.user.id), req.params.archiveId);
+        if (!record) return res.status(404).json({ error: "Archived conversation not found." });
         const messages = Array.isArray(record.messages) ? record.messages.map(message => ({ role: message.role, content: message.content })) : [];
         return res.json({ messages });
     } catch (error) {
@@ -583,17 +615,34 @@ app.get("/api/archives/:archiveId", (req, res) => {
     }
 });
 
-app.put("/api/threads/:threadId/messages", (req, res) => {
+app.post("/api/archives/:archiveId/restore", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
-    const { messages } = req.body || {};
+    if (!/^archive_[a-zA-Z0-9_-]{1,120}$/.test(req.params.archiveId)) return res.status(400).json({ error: "Invalid archive ID." });
+    try {
+        const newThreadId = `thread_${Date.now()}_${require("crypto").randomBytes(4).toString("hex")}`;
+        const thread = await conversationRepository.restoreArchive(String(req.user.id), req.params.archiveId, newThreadId);
+        if (!thread) return res.status(404).json({ error: "Archived conversation not found." });
+        return res.json({ success: true, thread });
+    } catch (error) {
+        console.error("Archive restore failed:", error.message);
+        return res.status(500).json({ error: "Could not restore this archived conversation." });
+    }
+});
+
+app.put("/api/threads/:threadId/messages", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Please log in first." });
+    const { messages, title } = req.body || {};
     if (!Array.isArray(messages) || messages.length > 1000 || !messages.every(message =>
         message && ["user", "assistant", "ai"].includes(message.role) && typeof message.content === "string" && message.content.length <= 50000 && [0, 1, 2, 3].includes(message.priority || 0)
     )) return res.status(400).json({ error: "Invalid conversation messages." });
     try {
-        const count = writeAuthenticatedThreadMessages(String(req.user.id), req.params.threadId, messages);
+        const userId = String(req.user.id);
+        const existing = await getStoredThread(userId, req.params.threadId);
+        const count = await conversationRepository.setMessages(userId, req.params.threadId, messages, { title: typeof title === "string" && title.trim() ? title.trim().slice(0, 120) : existing?.title });
         return res.json({ success: true, messageCount: count });
     } catch (error) {
-        return res.status(400).json({ error: error.message || "Could not save conversation." });
+        const invalidInput = /Invalid conversation|empty update/i.test(error.message || "");
+        return res.status(invalidInput ? 400 : 500).json({ error: invalidInput ? error.message : "Could not save the conversation to persistent storage." });
     }
 });
 
@@ -603,7 +652,7 @@ app.put("/api/threads/:threadId/messages", (req, res) => {
 
 app.patch(
     "/api/threads/:threadId/messages/:messageId/priority",
-    (req, res) => {
+    async (req, res) => {
         if (!req.isAuthenticated()) {
             return res.status(401).json({
                 error: "Please log in first."
@@ -619,7 +668,10 @@ app.patch(
         }
 
         try {
-            const message = updateAuthenticatedMessagePriority(String(req.user.id), req.params.threadId, req.params.messageId, priority);
+            const userId = String(req.user.id);
+            const thread = await getStoredThread(userId, req.params.threadId);
+            if (!thread) return res.status(404).json({ error: "Conversation not found." });
+            const message = await conversationRepository.updatePriority(userId, req.params.threadId, req.params.messageId, priority);
 
             return res.json({
                 success: true,
@@ -627,8 +679,9 @@ app.patch(
             });
 
         } catch (error) {
-            return res.status(400).json({
-                error: error.message || "Could not update message priority."
+            const expected = /limit reached|Message not found|Conversation not found|Invalid conversation|Priority must follow/i.test(error.message || "");
+            return res.status(expected ? 400 : 500).json({
+                error: expected ? error.message : "Could not update the message priority in persistent storage."
             });
         }
     }
@@ -673,7 +726,7 @@ app.patch(
 ========================================================= */
 app.delete(
     "/api/threads/:threadId/messages/:messageId",
-    (req, res) => {
+    async (req, res) => {
         if (!req.isAuthenticated()) {
             return res.status(401).json({
                 error: "Please log in first."
@@ -681,12 +734,9 @@ app.delete(
         }
 
         try {
-            const { filePath } = getAuthenticatedThreadFile(String(req.user.id), req.params.threadId);
-            if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Conversation not found." });
-            const records = fs.readFileSync(filePath, "utf8").split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
-            const nextRecords = records.filter(record => record.message_id !== req.params.messageId);
-            if (nextRecords.length === records.length) return res.status(404).json({ error: "Message not found." });
-            fs.writeFileSync(filePath, nextRecords.map(record => JSON.stringify(record)).join("\n") + (nextRecords.length ? "\n" : ""), "utf8");
+            const userId = String(req.user.id);
+            if (!await getStoredThread(userId, req.params.threadId)) return res.status(404).json({ error: "Conversation not found." });
+            if (!await conversationRepository.deleteMessage(userId, req.params.threadId, req.params.messageId)) return res.status(404).json({ error: "Message not found." });
 
             return res.json({
                 success: true,
@@ -811,8 +861,9 @@ app.post("/api/chat", async (req, res) => {
         });
     }
 
-   const { apiId, messages } = req.body;
+   const { apiId, messages, threadId, usageScope } = req.body;
 
+if (usageScope != null && !["conversation", "pillar_generation"].includes(usageScope)) return res.status(400).json({ error: "Invalid usage scope." });
 if (
     typeof apiId !== "string" ||
     !Array.isArray(messages) ||
@@ -831,6 +882,11 @@ const validMessages = messages.every(message =>
     message.content.trim().length > 0 &&
     message.content.length <= 50000
 );
+
+if (threadId != null) {
+    try { conversationRepository.validateThreadId(threadId); }
+    catch { return res.status(400).json({ error: "Invalid conversation ID." }); }
+}
 
 if (!validMessages) {
     return res.status(400).json({
@@ -1050,7 +1106,8 @@ if (totalCharacters > 200000) {
 if (
     actualUsage &&
     Number.isFinite(estimatedInputTokens) &&
-    Number.isFinite(actualUsage.inputTokens)
+    Number.isFinite(actualUsage.inputTokens) &&
+    usageScope !== "pillar_generation"
 ) {
     recordUsageCalibration(
         estimatedInputTokens,
@@ -1066,10 +1123,7 @@ const calibratedInputEstimate =
         provider,
         model
     );
-return res.json({
-    reply: reply.trim(),
-
-  usage: {
+const usagePayload = {
     estimatedInputTokens,
     messageTokenEstimates,
     calibratedInputEstimate,
@@ -1077,8 +1131,17 @@ return res.json({
     actualInputTokens: actualUsage?.inputTokens ?? null,
     actualOutputTokens: actualUsage?.outputTokens ?? null,
     actualTotalTokens: actualUsage?.totalTokens ?? null,
-    source: actualUsage ? "provider" : "unavailable"
-},
+    source: actualUsage ? "provider" : "estimated",
+    provider,
+    model
+};
+if (threadId && usageScope !== "pillar_generation") {
+    try { await conversationRepository.saveUsage(String(req.user.id), threadId, usagePayload); }
+    catch (error) { console.error("Conversation token usage could not be saved:", error.message); }
+}
+return res.json({
+    reply: reply.trim(),
+    usage: usagePayload,
 
     model: data.model || model
 });
@@ -1286,7 +1349,7 @@ app.delete("/api/keys/:id", async (req, res) => {
     }
 });
 //x-x-x-x-x-x-x-x-xx-x-x-x-x-x-x-x-x-x-xx-xx-x-x-x
-app.post("/api/conversations", (req, res) => {
+app.post("/api/conversations", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -1296,7 +1359,8 @@ app.post("/api/conversations", (req, res) => {
     const { conversationId } = req.body;
 
     try {
-        getConversationDirectory(String(req.user.id), conversationId);
+        conversationRepository.validateThreadId(conversationId);
+        await conversationRepository.ensureThread(String(req.user.id), conversationId);
 
         return res.status(201).json({
             success: true,
@@ -1311,7 +1375,7 @@ app.post("/api/conversations", (req, res) => {
         });
     }
 });
-app.post("/api/conversations/messages", (req, res) => {
+app.post("/api/conversations/messages", async (req, res) => {
     if (!req.isAuthenticated()) {
         return res.status(401).json({
             error: "Please log in first."
@@ -1319,15 +1383,12 @@ app.post("/api/conversations/messages", (req, res) => {
     }
     const { conversationId, role, content } = req.body;
     try {
-        const result = appendMessage(
-            String(req.user.id),
-            conversationId,
-            role,
-            content
-        );
+        const userId = String(req.user.id);
+        const result = await conversationRepository.appendMessage(userId, conversationId, role, content);
         return res.status(200).json({
             success: true,
-            ...result
+            saved: true,
+            message: result
         });
     } catch (error) {
         console.error("Message storage error:", error);

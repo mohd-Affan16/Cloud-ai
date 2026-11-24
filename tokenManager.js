@@ -32,21 +32,11 @@ function estimateMessageTokens(message, provider, model) {
 
     const config = getModelConfig(provider, model);
 
-    // Local estimation is currently supported only
-    // for models configured with a local tokenizer.
-    if (config.countingMethod !== "local" || !config.tokenizer) {
-        return null;
-    }
-
-    const roleTokens = estimateTokens(
-        message.role,
-        config.tokenizer
-    );
-
-    const contentTokens = estimateTokens(
-        message.content,
-        config.tokenizer
-    );
+    const tokenizer = config.countingMethod === "local" && config.tokenizer
+        ? config.tokenizer
+        : null;
+    const roleTokens = tokenizer ? estimateTokens(message.role, tokenizer) : Math.ceil(message.role.length / 3.5);
+    const contentTokens = tokenizer ? estimateTokens(message.content, tokenizer) : Math.ceil(message.content.length / 3.5);
 
     if (roleTokens === null || contentTokens === null) {
         return null;
@@ -62,7 +52,7 @@ function estimateMessageTokens(message, provider, model) {
         contentTokens,
         overheadTokens: MESSAGE_OVERHEAD,
         totalTokens,
-        source: "local_estimate"
+        source: tokenizer ? "local_tokenizer_estimate" : "character_estimate"
     };
 }
 

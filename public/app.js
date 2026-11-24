@@ -49,12 +49,29 @@ const apiSwitcherList = document.getElementById("apiSwitcherList");
 ========================================================= */
 const authButtonLabel = document.getElementById("authButtonLabel");
 let isUserAuthenticated = false;
+let authenticatedUserId = null;
 
 async function updateAuthButton() {
     try {
         const response = await fetch("/auth/me", { credentials: "same-origin" });
         const auth = await response.json();
         isUserAuthenticated = response.ok && auth.authenticated === true;
+        if (isUserAuthenticated && auth.user?.id) {
+            const signedInUserId = String(auth.user.id);
+            if (authenticatedUserId !== signedInUserId) {
+                await activateAccountStorage(signedInUserId);
+                await syncThreadsFromServer();
+            }
+        } else {
+            authenticatedUserId = null;
+            if (localStorage.getItem("cloud_ai_legacy_threads_owner")) {
+                threads = [];
+                activeThreadId = null;
+                renderThreads();
+                clearChatMessages();
+                welcome?.classList.remove("hidden");
+            }
+        }
         if (authButtonLabel) {
             authButtonLabel.textContent = isUserAuthenticated ? "Log out" : "Login / Sign up";
         }
@@ -244,6 +261,28 @@ async function loadOriginalConversationArchives() {
             const preview = document.createElement("pre");
             preview.className = "archive-conversation-preview";
             preview.hidden = true;
+            const restore = document.createElement("button");
+            restore.type = "button";
+            restore.className = "storage-action-button archive-restore-button";
+            restore.textContent = "Restore to new chat";
+            restore.addEventListener("click", async () => {
+                restore.disabled = true;
+                try {
+                    const restoreResponse = await fetch(`/api/archives/${encodeURIComponent(archive.id)}/restore`, {
+                        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" }
+                    });
+                    const restoreData = await restoreResponse.json().catch(() => ({}));
+                    if (!restoreResponse.ok || !restoreData.thread) throw new Error(restoreData.error || "Could not restore this archive.");
+                    threads.unshift(restoreData.thread);
+                    activeThreadId = restoreData.thread.id;
+                    saveThreadsToStorage();
+                    renderThreads();
+                    closePages();
+                    loadThread(activeThreadId);
+                } catch (error) {
+                    status.textContent = error.message || "Could not restore this archive.";
+                } finally { restore.disabled = false; }
+            });
             view.addEventListener("click", async () => {
                 view.disabled = true;
                 try {
@@ -256,7 +295,7 @@ async function loadOriginalConversationArchives() {
                     status.textContent = error.message || "Could not open the archived file.";
                 } finally { view.disabled = false; }
             });
-            row.append(details, view, preview);
+            row.append(details, view, restore, preview);
             list.appendChild(row);
         });
     } catch (error) {
@@ -285,13 +324,88 @@ const contextUsageButton = document.getElementById("contextUsageButton");
 const contextUsageLabel = document.getElementById("contextUsageLabel");
 const contextUsageRing = document.getElementById("contextUsageRing");
 const COMPRESSION_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-let threads = JSON.parse(localStorage.getItem("cloud_ai_threads") || "[]");
-let activeThreadId = localStorage.getItem("cloud_ai_active_thread") || null;
+const legacyThreadOwner = localStorage.getItem("cloud_ai_legacy_threads_owner");
+let threads = legacyThreadOwner ? [] : JSON.parse(localStorage.getItem("cloud_ai_threads") || "[]");
+let activeThreadId = legacyThreadOwner ? null : (localStorage.getItem("cloud_ai_active_thread") || null);
 let apiEntries = [];
 
 function saveThreadsToStorage() {
+    if (authenticatedUserId) {
+        localStorage.setItem(`cloud_ai_threads_${authenticatedUserId}`, JSON.stringify(threads));
+        localStorage.setItem(`cloud_ai_active_thread_${authenticatedUserId}`, activeThreadId || "");
+        return;
+    }
     localStorage.setItem("cloud_ai_threads", JSON.stringify(threads));
     localStorage.setItem("cloud_ai_active_thread", activeThreadId);
+}
+
+async function activateAccountStorage(userId) {
+    const threadKey = `cloud_ai_threads_${userId}`;
+    const activeKey = `cloud_ai_active_thread_${userId}`;
+    let scopedThreads = localStorage.getItem(threadKey);
+    const priorOwner = localStorage.getItem("cloud_ai_legacy_threads_owner");
+    if (scopedThreads === null) {
+        if (!priorOwner) {
+            scopedThreads = localStorage.getItem("cloud_ai_threads") || "[]";
+            localStorage.setItem("cloud_ai_legacy_threads_owner", userId);
+            localStorage.setItem(threadKey, scopedThreads);
+            localStorage.setItem(activeKey, localStorage.getItem("cloud_ai_active_thread") || "");
+        } else if (priorOwner === userId) {
+            scopedThreads = localStorage.getItem("cloud_ai_threads") || "[]";
+            localStorage.setItem(threadKey, scopedThreads);
+            localStorage.setItem(activeKey, localStorage.getItem("cloud_ai_active_thread") || "");
+        } else {
+            scopedThreads = "[]";
+            localStorage.setItem(threadKey, scopedThreads);
+            localStorage.setItem(activeKey, "");
+        }
+    }
+    authenticatedUserId = userId;
+    threads = JSON.parse(scopedThreads || "[]");
+    activeThreadId = localStorage.getItem(activeKey) || null;
+}
+
+async function syncThreadsFromServer() {
+    if (!authenticatedUserId) return;
+    try {
+        const localThreads = [...threads];
+        for (const localThread of localThreads) {
+            const existingResponse = await fetch(`/api/threads/${encodeURIComponent(localThread.id)}`, { credentials: "same-origin", cache: "no-store" });
+            if (existingResponse.status === 404) {
+                const messages = Array.isArray(localThread.messages) ? localThread.messages : [];
+                if (messages.length) {
+                    const saved = await fetch(`/api/threads/${encodeURIComponent(localThread.id)}/messages`, {
+                        method: "PUT", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ title: localThread.title || "Conversation", messages })
+                    });
+                    if (!saved.ok) throw new Error("Could not import an existing conversation into persistent storage.");
+                } else {
+                    const created = await fetch("/api/conversations", {
+                        method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ conversationId: localThread.id })
+                    });
+                    if (!created.ok) throw new Error("Could not create persistent conversation storage.");
+                }
+            }
+        }
+        const response = await fetch("/api/threads", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !Array.isArray(data.threads)) throw new Error(data.error || "Could not load saved conversations.");
+        const localById = new Map(threads.map(thread => [thread.id, thread]));
+        threads = data.threads.map(thread => ({ ...localById.get(thread.id), ...thread }));
+        if (!threads.length) {
+            activeThreadId = null;
+            createNewThread();
+            return;
+        }
+        if (!threads.some(thread => thread.id === activeThreadId)) activeThreadId = threads[0].id;
+        saveThreadsToStorage();
+        renderThreads();
+        loadThread(activeThreadId);
+    } catch (error) {
+        console.error("Conversation synchronization failed:", error.message);
+        showPopup("Conversation Sync Failed", error.message || "Could not synchronize saved conversations.", "error", 7000);
+    }
 }
 
 function getActiveThread() {
@@ -547,6 +661,7 @@ function setContextUsage(usage) {
     }
     if (remaining !== null && activeThreadId) {
         localStorage.setItem(`cloud_ai_context_usage_${activeThreadId}`, JSON.stringify({ usagePercent: percent, updatedAt: Date.now() }));
+        window.MigrationManager?.checkUsageForConversation(activeThreadId, percent);
     }
 }
 
@@ -561,14 +676,16 @@ function estimateVisibleContextUsage() {
         if (activeApi?.id) {
             const fallbackEstimate = estimate + Math.ceil((messageInput?.value?.length || 0) / 4);
             const fallbackBudget = 32768 - 4096 - Math.ceil(32768 * 0.1);
-            setContextUsage({ contextBudget: { usagePercent: Math.min(100, fallbackEstimate / fallbackBudget * 100) } });
+            const usagePercent = Math.min(100, fallbackEstimate / fallbackBudget * 100);
+            setContextUsage({ contextBudget: { usagePercent } });
             if (contextUsageButton) contextUsageButton.title = "Approximate remaining context using a 32k fallback; provider usage replaces this after a reply";
         } else setContextUsage(null);
         return;
     }
     const inputTokens = estimate + Math.ceil((messageInput?.value?.length || 0) / 4);
     const inputBudget = windowSize - 4096 - Math.ceil(windowSize * 0.1);
-    setContextUsage({ contextBudget: { usagePercent: Math.min(100, inputTokens / inputBudget * 100) } });
+    const usagePercent = Math.min(100, inputTokens / inputBudget * 100);
+    setContextUsage({ contextBudget: { usagePercent } });
 }
 
 function loadContextUsage() {
@@ -635,34 +752,40 @@ function getPillarSourceMessages(thread) {
     }));
 }
 
-window.CloudTokenManager = Object.freeze({
-    estimateTokens(text) {
-        if (typeof text !== "string" || !text.trim()) return 0;
-        return Math.ceil(text.length / 4);
-    }
-});
-
-function buildPillarRequest(thread, operation) {
-    const messages = getPillarSourceMessages(thread);
-    if (messages.length < 2) throw new Error("Add at least one user message and one assistant response first.");
+async function buildPillarRequest(thread, operation) {
     const activeApi = getActiveApi();
     if (!activeApi?.id) throw new Error("Select a saved API key before using context tools.");
-
-    const tokenEstimate = messages.reduce((sum, message) =>
-        sum + (window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)) + 4, 0);
-    const prioritized = [...messages].sort((a, b) => b.priority - a.priority || a.index - b.index);
-    const starred = prioritized.filter(message => message.priority > 0);
-    const ordinary = prioritized.filter(message => message.priority === 0);
-    const budget = Math.max(800, Math.min(12000, Math.ceil(tokenEstimate * (operation === "migration" ? 0.38 : 0.24))));
-    const selected = [...starred, ...ordinary].slice(0, Math.max(8, Math.ceil(budget / 80)));
-    const history = selected.sort((a, b) => a.index - b.index).map(message =>
-        `[${message.role === "user" ? "USER" : "ASSISTANT (unverified unless user-confirmed)"}; priority ${message.priority}; estimated tokens ${window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)}]\n${message.content}`
+    const response = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/pillar-source?apiId=${encodeURIComponent(activeApi.id)}&operation=${encodeURIComponent(operation)}`, {
+        credentials: "same-origin", cache: "no-store"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Could not load the saved conversation for context management.");
+    if (data.overflowStarred?.length) {
+        const tooLarge = data.overflowStarred.some(message => message.estimatedTokens > data.tokenBudget);
+        throw new Error(`${data.overflowStarred.length} starred message${data.overflowStarred.length === 1 ? "" : "s"} could not fit in the ${Number(data.tokenBudget).toLocaleString()} token estimate budget${tooLarge ? ", including a message larger than the entire budget" : ""}. Shorten or unstar messages before continuing; none were silently dropped.`);
+    }
+    const messages = Array.isArray(data.selectedMessages) ? data.selectedMessages : [];
+    if (messages.length < 2) throw new Error("This conversation does not have enough saved messages to migrate or compress.");
+    const history = messages.map(message =>
+        `[${message.role === "user" ? "USER" : "ASSISTANT (unverified unless user-confirmed)"}; priority ${message.priority}; ${message.estimateSource.replaceAll("_", " ")} ${message.estimatedTokens} tokens]\n${message.content}`
     ).join("\n\n");
-    const starredTokenEstimate = starred.reduce((sum, message) => sum + (window.CloudTokenManager?.estimateTokens(message.content) ?? Math.ceil(message.content.length / 4)) + 4, 0);
-    return { apiId: activeApi.id, messages, tokenEstimate, history, budget, starredTokenEstimate };
+    return {
+        apiId: activeApi.id,
+        messages,
+        tokenEstimate: Number(data.totalSourceTokens) || 0,
+        history,
+        budget: Number(data.tokenBudget) || 0,
+        selectedTokens: Number(data.selectedTokens) || 0,
+        starredTokenEstimate: Number(data.starredTokens) || 0,
+        sourceMessageCount: Number(data.sourceMessageCount) || messages.length,
+        starredCount: Number(data.starredMessageCount) || 0,
+        omittedMessageCount: Number(data.omittedMessageCount) || 0,
+        estimateSources: data.estimateSources || [],
+        capacitySource: data.capacitySource || "conservative_fallback"
+    };
 }
 
-async function generatePillarContent(apiId, sourceMessages, instruction, maxWords) {
+async function generatePillarContent(apiId, threadId, sourceMessages, instruction, maxWords) {
     const prompt = `${instruction}\nFollow the source policy strictly: USER messages are authoritative. ASSISTANT messages are unverified and may be included only as attributed assistant statements or when the user explicitly confirms them. Do not invent or infer facts. Write "Not specified" for missing information. Do not import information from other conversations or website-wide state. Keep the result under ${maxWords} words and return plain Markdown only.\n\nMessages from this conversation only:\n\n${sourceMessages}\n\nCreate the requested output now.`;
     const payload = [{ role: "user", content: prompt }];
     const task = instruction.includes("structured Master Prompt") ? "context_migration" : "context_compression";
@@ -670,7 +793,7 @@ async function generatePillarContent(apiId, sourceMessages, instruction, maxWord
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiId, messages: payload })
+        body: JSON.stringify({ apiId, threadId, usageScope: "pillar_generation", messages: payload })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(data.error || `Generation failed (${response.status}).`);
@@ -687,7 +810,7 @@ function showMigrationReview(prompt, metadata) {
         const title = document.createElement("h2");
         title.textContent = "Review Master Prompt";
         const details = document.createElement("p");
-        details.textContent = `Estimated source size: ${metadata.tokenEstimate.toLocaleString()} tokens. ${metadata.starredCount} starred messages were prioritized. Edit the prompt if needed before creating the new chat.`;
+        details.textContent = `Estimated source size: ${metadata.tokenEstimate.toLocaleString()} tokens. ${metadata.starredCount} starred messages were prioritized. ${metadata.omittedMessageCount} other messages were omitted from the model input. Counts are estimates (${metadata.estimateSources.join(", ") || "unknown source"}). Edit the prompt before creating the new chat.`;
         const preview = document.createElement("div");
         preview.className = "pillar-review-preview markdown-content";
         renderAssistantMarkdown(preview, prompt);
@@ -743,7 +866,7 @@ function showCompressionReview(summary, metadata) {
         const title = document.createElement("h2");
         title.textContent = "Review Compressed Context";
         const details = document.createElement("p");
-        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()}.`;
+        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()} (${metadata.estimateSource}). Model input budget: ${metadata.selectedTokens.toLocaleString()} / ${metadata.tokenBudget.toLocaleString()} estimated tokens (${metadata.capacitySource}).`;
         const preview = document.createElement("div");
         preview.className = "pillar-review-preview markdown-content";
         renderAssistantMarkdown(preview, summary);
@@ -797,11 +920,14 @@ async function runMigration() {
     setContextActionStatus("Preparing a structured Master Prompt…");
     try {
         thread = await syncThreadMessagesFromServer(thread.id) || thread;
-        const request = buildPillarRequest(thread, "migration");
-        const generated = await generatePillarContent(request.apiId, request.history,
+        const request = await buildPillarRequest(thread, "migration");
+        const generated = await generatePillarContent(request.apiId, thread.id, request.history,
             "Create a structured Master Prompt from this conversation only for continuing it in a new conversation. Include these headings: Project or Conversation Objective; Background and Important Context; User Instructions; Important Decisions; Technical Information; Current Progress; Pending Tasks; Known Problems; Important Constraints; Next Recommended Steps. Treat starred messages as important, but do not convert unconfirmed assistant claims into facts. Do not import details from other conversations or invent anything.", 2200);
         const prompt = generated.reply;
-        const approvedPrompt = await showMigrationReview(prompt, { tokenEstimate: request.tokenEstimate, starredCount: request.messages.filter(message => message.priority > 0).length });
+        const approvedPrompt = await showMigrationReview(prompt, {
+            tokenEstimate: request.tokenEstimate, starredCount: request.starredCount,
+            omittedMessageCount: request.omittedMessageCount, estimateSources: request.estimateSources
+        });
         if (!approvedPrompt) {
             setContextActionStatus("Migration cancelled. The original conversation is unchanged.");
             return;
@@ -809,7 +935,7 @@ async function runMigration() {
         const newThread = {
             id: "thread_" + Date.now(),
             title: `Continue: ${thread.title || "Conversation"}`.slice(0, 60),
-            messages: [{ role: "user", content: `Use this Master Prompt as the working context for continuing the project:\n\n${approvedPrompt}`, priority: 3 }],
+            messages: [{ message_id: `thread_${Date.now()}_master_prompt`, role: "user", content: `Use this Master Prompt as the working context for continuing the project:\n\n${approvedPrompt}`, priority: 0 }],
             migratedFrom: thread.id,
             masterPrompt: approvedPrompt
         };
@@ -819,7 +945,7 @@ async function runMigration() {
             const persisted = await fetch(`/api/threads/${encodeURIComponent(newThread.id)}/messages`, {
                 method: "PUT", credentials: "same-origin",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: newThread.messages })
+                body: JSON.stringify({ title: newThread.title, messages: newThread.messages })
             });
             const persistedData = await persisted.json().catch(() => ({}));
             if (!persisted.ok) throw new Error(persistedData.error || "Could not persist the new conversation.");
@@ -831,7 +957,7 @@ async function runMigration() {
         saveThreadsToStorage();
         clearChatMessages();
         welcome?.classList.add("hidden");
-        addMessage(newThread.messages[0].content, "user", null, 3);
+        addMessage(newThread.messages[0].content, "user", newThread.messages[0].message_id, 0);
         renderThreads();
         MigrationManager.setConversation(newThread.id);
         updateCompressionCooldown();
@@ -860,48 +986,57 @@ async function runCompression() {
     try {
         thread = await syncThreadMessagesFromServer(thread.id) || thread;
         if (getActiveThread()?.id !== thread.id) throw new Error("The active conversation changed. Reopen its context tools and try again.");
-        const request = buildPillarRequest(thread, "compression");
-        const generated = await generatePillarContent(request.apiId, request.history,
+        const request = await buildPillarRequest(thread, "compression");
+        const generated = await generatePillarContent(request.apiId, thread.id, request.history,
             "Compress ONLY this conversation into a concise reusable context record. The source messages are labeled USER or ASSISTANT. Treat USER messages as the authoritative record of the user's goals, facts, requirements, and decisions. Assistant messages are unverified suggestions unless the user explicitly confirms them. Never turn assistant examples, guesses, or general explanations into project facts. Do not invent a project objective, model limits, technical stack, test results, or pending work. If the source does not state a fact, write Not specified. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Preserve starred messages. Merge repetition without losing unique user instructions. This summary will replace ordinary messages in this one conversation only; it will not affect any other conversation.", 1600);
         const compressed = generated.reply;
-        const compressedEstimate = window.CloudTokenManager?.estimateTokens(compressed) ?? Math.ceil(compressed.length / 4);
+        const tokenEstimateResponse = await fetch("/api/token-estimate", {
+            method: "POST", credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apiId: request.apiId, text: compressed })
+        });
+        const tokenEstimateData = await tokenEstimateResponse.json().catch(() => ({}));
+        if (!tokenEstimateResponse.ok) throw new Error(tokenEstimateData.error || "Could not estimate the compressed summary size.");
+        let compressedEstimate = tokenEstimateData.estimatedTokens;
         if (compressedEstimate >= Math.max(1, request.tokenEstimate - request.starredTokenEstimate)) {
             throw new Error("The summary did not reduce the estimated context by at least 10%. No changes were saved.");
         }
         const approvedSummary = await showCompressionReview(compressed, {
             sourceTokenEstimate: request.tokenEstimate,
             compressedTokenEstimate: compressedEstimate,
-            sourceMessageCount: request.messages.length
+            sourceMessageCount: request.sourceMessageCount,
+            selectedTokens: request.selectedTokens,
+            tokenBudget: request.budget,
+            capacitySource: request.capacitySource,
+            estimateSource: tokenEstimateData.source
         });
         if (!approvedSummary) {
             setContextActionStatus("Compression cancelled. The conversation is unchanged.");
             return;
         }
+        if (approvedSummary !== compressed) {
+            const editedEstimateResponse = await fetch("/api/token-estimate", {
+                method: "POST", credentials: "same-origin",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ apiId: request.apiId, text: approvedSummary })
+            });
+            const editedEstimateData = await editedEstimateResponse.json().catch(() => ({}));
+            if (!editedEstimateResponse.ok) throw new Error(editedEstimateData.error || "Could not estimate the edited summary.");
+            compressedEstimate = editedEstimateData.estimatedTokens;
+            if (compressedEstimate >= Math.max(1, request.tokenEstimate - request.starredTokenEstimate)) {
+                throw new Error("The edited summary no longer reduces the estimated context size. No changes were saved.");
+            }
+        }
         const summarizedMessages = request.messages.filter(message => message.priority > 0).map(message => ({
             role: message.role,
             content: message.content,
             priority: message.priority,
-            message_id: thread.messages[message.index]?.message_id
+            message_id: message.message_id,
+            timestamp: message.timestamp
         }));
-        summarizedMessages.push({ role: "assistant", content: `[Conversation context compressed by user]\n${approvedSummary}`, priority: 3 });
+        summarizedMessages.push({ message_id: `${thread.id}_summary_${Date.now()}`, role: "assistant", content: `[Conversation context compressed by user]\n${approvedSummary}`, priority: 0 });
         const nextMessages = summarizedMessages;
-        const originalMessages = thread.messages;
-        setContextActionStatus("Archiving the original conversation before applying compression…");
-        const archived = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/archive-original`, {
-            method: "POST", credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ originalTitle: thread.title || "Conversation", messages: originalMessages })
-        });
-        const archiveData = await archived.json().catch(() => ({}));
-        if (!archived.ok) throw new Error(archiveData.error || "The original conversation could not be archived, so compression was not applied.");
-        const savedHistory = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/messages`, {
-            method: "PUT", credentials: "same-origin",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ messages: nextMessages })
-        });
-        const historyData = await savedHistory.json().catch(() => ({}));
-        if (!savedHistory.ok) throw new Error(historyData.error || "Compression was generated, but the active history could not be updated.");
-        thread.messages = nextMessages;
+        setContextActionStatus("Saving the archive, summary, and cooldown together…");
         const stored = await fetch(`/api/threads/${encodeURIComponent(thread.id)}/compression`, {
             method: "PUT",
             credentials: "same-origin",
@@ -910,19 +1045,15 @@ async function runCompression() {
                 summary: approvedSummary,
                 sourceTokenEstimate: request.tokenEstimate,
                 compressedTokenEstimate: compressedEstimate,
-                sourceMessageCount: request.messages.length
+                sourceMessageCount: request.sourceMessageCount,
+                activeMessages: nextMessages,
+                originalTitle: thread.title || "Conversation",
+                estimateSource: tokenEstimateData.source
             })
         });
         const storedData = await stored.json().catch(() => ({}));
-        if (!stored.ok) {
-            await fetch(`/api/threads/${encodeURIComponent(thread.id)}/messages`, {
-                method: "PUT", credentials: "same-origin",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ messages: originalMessages })
-            }).catch(() => {});
-            thread.messages = originalMessages;
-            throw new Error(storedData.error || "Could not save the compression record; the original messages were restored.");
-        }
+        if (!stored.ok) throw new Error(storedData.error || "Could not save compression. The server left the original messages unchanged.");
+        thread.messages = nextMessages;
         thread.compression = storedData.compression;
         saveThreadsToStorage();
         if (getActiveThread()?.id === thread.id) {
@@ -935,7 +1066,7 @@ async function runCompression() {
             catch (archiveError) { console.warn("Could not copy compression summary to archive:", archiveError.message); }
         }
         updateCompressionCooldown();
-        setContextActionStatus(`Context compressed and applied (${request.tokenEstimate.toLocaleString()} → ${compressedEstimate.toLocaleString()} estimated tokens). Starred messages were preserved.`);
+        setContextActionStatus(`Context compressed and archived (${request.tokenEstimate.toLocaleString()} → ${compressedEstimate.toLocaleString()} estimated tokens). ${request.omittedMessageCount} ordinary message${request.omittedMessageCount === 1 ? " was" : "s were"} summarized; starred messages were preserved.`);
     } catch (error) {
         console.error("Conversation compression failed:", error);
         if (compressConversationButton) compressConversationButton.disabled = false;
@@ -953,10 +1084,11 @@ async function saveMessageToServer(conversationId, role, content) {
     const serverRole = role === "ai" ? "assistant" : role;
 
     try {
+        const localThread = threads.find(thread => thread.id === conversationId);
         const archiveResponse = await fetch(`/api/threads/${encodeURIComponent(conversationId)}/messages`, {
             method: "POST", credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ role: serverRole, content })
+            body: JSON.stringify({ role: serverRole, content, title: localThread?.title || "New Conversation" })
         });
         const archiveData = await archiveResponse.json().catch(() => ({}));
         if (!archiveResponse.ok || !archiveData.success) throw new Error(archiveData.error || "Message could not be saved.");
@@ -1141,6 +1273,8 @@ async function sendMessage() {
             },
             body: JSON.stringify({
                 apiId: activeApi.id,
+                threadId: currentThread.id,
+                usageScope: "conversation",
                 messages: conversationMessages
             })
         });

@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/pillar-reliability.test.js",
     "start": "node --no-network-family-autoselection server.js"
   },
   "repository": {
