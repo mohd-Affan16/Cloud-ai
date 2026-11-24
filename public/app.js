@@ -531,20 +531,44 @@ async function loadStoredCompression(thread) {
    DELETE THREAD
 ========================================================= */
 
-function deleteThread(id, event) {
+async function deleteThread(id, event) {
     event.stopPropagation();
-    threads = threads.filter((thread) => thread.id !== id);
-    if (activeThreadId === id) {
-        if (threads.length > 0) {
-            activeThreadId = threads[0].id;
-            loadThread(activeThreadId);
-        } else {
-            createNewThread();
-            return;
+
+    const deleteButton = event.currentTarget;
+    if (deleteButton) deleteButton.disabled = true;
+
+    try {
+        const response = await fetch(`/api/threads/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" }
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || data.success !== true) {
+            throw new Error(data.error || "The conversation could not be deleted from your account.");
         }
+
+        threads = threads.filter((thread) => thread.id !== id);
+
+        if (activeThreadId === id) {
+            if (threads.length > 0) {
+                activeThreadId = threads[0].id;
+                loadThread(activeThreadId);
+            } else {
+                saveThreadsToStorage();
+                renderThreads();
+                createNewThread();
+                return;
+            }
+        }
+
+        saveThreadsToStorage();
+        renderThreads();
+    } catch (error) {
+        if (deleteButton) deleteButton.disabled = false;
+        showPopup("Could Not Delete Conversation", error.message || "Please try again.", "error");
     }
-    saveThreadsToStorage();
-    renderThreads();
 }
 /* =========================================================
    RENDER THREADS
