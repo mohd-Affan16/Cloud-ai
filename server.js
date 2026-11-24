@@ -1088,7 +1088,22 @@ if (totalCharacters > 200000) {
         provider === "groq" &&
         model === "openai/gpt-oss-20b"
     ) {
-        body.max_completion_tokens = 4096;
+        // Groq's on-demand TPM limit counts the requested completion allowance
+        // as well as input tokens. Reserving 4096 output tokens for every request
+        // can reject otherwise-valid compression chunks before generation starts.
+        const groqRequestTokenCeiling = 7000;
+        const groqSafetyMargin = 500;
+        const minimumCompletionTokens = 512;
+        const availableCompletionTokens =
+            groqRequestTokenCeiling - estimatedInputTokens - groqSafetyMargin;
+
+        if (availableCompletionTokens < minimumCompletionTokens) {
+            return res.status(413).json({
+                error: "This request is too large for the selected Groq service tier. The conversation has not been changed. Reduce the compression chunk size or choose a model with a higher token allowance."
+            });
+        }
+
+        body.max_completion_tokens = Math.min(4096, availableCompletionTokens);
     }
 }
 

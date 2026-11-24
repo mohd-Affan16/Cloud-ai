@@ -798,6 +798,8 @@ async function buildPillarRequest(thread, operation) {
     ).join("\n\n");
     return {
         apiId: activeApi.id,
+        provider: String(activeApi.provider || "").toLowerCase(),
+        model: String(activeApi.model || ""),
         messages,
         allMessages,
         tokenEstimate: Number(data.totalSourceTokens) || 0,
@@ -1021,7 +1023,12 @@ async function runCompression() {
         const chunks = [];
         let currentChunk = [];
         let currentTokens = 0;
-        const chunkLimit = Math.max(500, request.budget || 3000);
+        const isGroqOss = request.provider === "groq" && request.model === "openai/gpt-oss-20b";
+        // The context window is not the provider's TPM allowance. Keep Groq
+        // compression inputs deliberately smaller so prompt and output tokens fit too.
+        const chunkLimit = isGroqOss
+            ? Math.min(2600, Math.max(500, request.budget || 2600))
+            : Math.max(500, request.budget || 3000);
         for (const message of sourceForCompression) {
             const content = String(message.content || "");
             const estimated = Number.isFinite(message.estimatedTokens)
@@ -1064,7 +1071,9 @@ async function runCompression() {
         }
         const finalInstruction = "Synthesize ALL supplied part summaries into one reusable context record that lets a new assistant continue this exact conversation without asking the user to repeat important information. Do not turn the result into a topic list. Preserve every distinct requirement, constraint, preference, decision, reason, technical detail, identifier, error, completed action, test result, unresolved issue, and next step. Retain specific values and names exactly when supplied. Distinguish user-confirmed facts and decisions from assistant suggestions or unverified claims; never upgrade an assistant suggestion into a confirmed decision. Merge duplicates, but do not discard unique details merely to make the summary shorter. Include these sections: Objective; User Requirements and Constraints; Decisions and Rationale; Important Conversation Details; Technical Context; Completed Work and Outcomes; Current State; Unresolved Issues and Risks; Pending Tasks / Next Steps. If a section has no supported information, write Not specified. Do not invent facts or import information from outside the supplied summaries.";
         const summaryTokenEstimate = value => Math.ceil(String(value || "").length / 3.5) + 64;
-        const mergeInputLimit = Math.max(1200, Math.floor((request.inputCapacity || request.budget * 3) * 0.6));
+        const mergeInputLimit = isGroqOss
+            ? 3600
+            : Math.max(1200, Math.floor((request.inputCapacity || request.budget * 3) * 0.6));
         let round = 1;
 
         // Avoid repeatedly summarizing already-small summaries. Only use another

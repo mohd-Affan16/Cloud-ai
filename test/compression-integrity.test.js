@@ -5,74 +5,52 @@ const pool = require("../db");
 const repository = require("../conversationRepository");
 
 function message(id, role, content, priority = 0) {
-    return {
-        message_id: id,
-        role,
-        content,
-        priority,
-        timestamp: "2026-11-24T10:00:00.000Z"
-    };
+    return { message_id: id, role, content, priority, timestamp: "2026-11-24T10:00:00.000Z" };
 }
 
 function setupDatabase(currentMessages, options = {}) {
     const state = {
         archived: null,
-        pendingArchive: null,
         updated: null,
-        committed: false,
-        rolledBack: false,
-        updateAttempted: false
+        statement: "",
+        params: null,
+        statementCount: 0
     };
 
     pool.query = async (sql, params = []) => {
         if (sql.startsWith("CREATE TABLE") || sql.startsWith("CREATE INDEX")) {
             return { rows: [], rowCount: 0 };
         }
-        if (sql.includes("SELECT archive_id FROM conversation_archives")) {
-            return { rows: state.archived ? [{ archive_id: "archive-test" }] : [], rowCount: state.archived ? 1 : 0 };
+        if (sql.includes("WITH locked AS MATERIALIZED")) {
+            state.statement = sql;
+            state.params = params;
+            state.statementCount++;
+            if (options.failStatement) throw new Error("simulated atomic statement failure");
+
+            const exists = !options.missingThread;
+            const expected = JSON.parse(params[5]);
+            const sourceMatches = exists && JSON.stringify(currentMessages) === JSON.stringify(expected);
+            const cooldownOk = exists && options.cooldownOk !== false;
+            const eligible = sourceMatches && cooldownOk;
+
+            if (eligible) {
+                state.archived = structuredClone(currentMessages);
+                state.updated = JSON.parse(params[6]);
+            }
+
+            return {
+                rows: [{
+                    thread_exists: exists,
+                    source_matches: sourceMatches,
+                    cooldown_ok: cooldownOk,
+                    compression: eligible ? JSON.parse(params[7]) : null,
+                    archive_id: eligible ? "archive-test" : null
+                }],
+                rowCount: 1
+            };
         }
         throw new Error("Unexpected pool query: " + sql);
     };
-
-    pool.connect = async () => ({
-        async query(sql, params = []) {
-            if (sql === "BEGIN" || sql === "ROLLBACK" || sql === "COMMIT") {
-                if (sql === "ROLLBACK") {
-                    state.rolledBack = true;
-                    state.pendingArchive = null;
-                }
-                if (sql === "COMMIT") {
-                    state.committed = true;
-                    state.archived = state.pendingArchive;
-                }
-                return { rows: [], rowCount: 0 };
-            }
-            if (sql.includes("SELECT * FROM conversation_threads") && sql.includes("FOR UPDATE")) {
-                return {
-                    rows: [{
-                        thread_id: "thread_test",
-                        title: "Test conversation",
-                        messages: currentMessages,
-                        compression: null,
-                        archived: false
-                    }],
-                    rowCount: 1
-                };
-            }
-            if (sql.includes("INSERT INTO conversation_archives")) {
-                state.pendingArchive = JSON.parse(params[5]);
-                return { rows: [], rowCount: 1 };
-            }
-            if (sql.includes("UPDATE conversation_threads SET messages=")) {
-                state.updateAttempted = true;
-                if (options.failUpdate) throw new Error("simulated update failure");
-                state.updated = JSON.parse(params[2]);
-                return { rows: [{ compression: JSON.parse(params[3]) }], rowCount: 1 };
-            }
-            throw new Error("Unexpected client query: " + sql);
-        },
-        release() {}
-    });
 
     return state;
 }
@@ -99,8 +77,8 @@ test("compression rejects a stale source snapshot without archiving or replacing
 
     assert.equal(result.source_matches, false);
     assert.equal(state.archived, null);
-    assert.equal(state.updateAttempted, false);
-    assert.equal(state.committed, false);
+    assert.equal(state.updated, null);
+    assert.match(state.statement, /FOR UPDATE/);
 });
 
 test("compression refuses to remove or modify a starred source message", async () => {
@@ -112,11 +90,11 @@ test("compression refuses to remove or modify a starred source message", async (
     ]));
 
     assert.equal(result.compression, null);
+    assert.equal(state.statementCount, 0);
     assert.equal(state.archived, null);
-    assert.equal(state.updateAttempted, false);
 });
 
-test("archive and active-history replacement commit together, and update failure rolls back", async () => {
+test("archive and active-history replacement are issued in one atomic Neon-compatible statement", async () => {
     const source = [
         message("ordinary", "user", "An ordinary message"),
         message("starred", "assistant", "Important answer", 1)
@@ -128,19 +106,42 @@ test("archive and active-history replacement commit together, and update failure
 
     const success = setupDatabase(source);
     const result = await repository.compressThread("user-a", "thread_test", payload(source, active));
+
     assert.equal(result.source_matches, true);
-    assert.equal(success.committed, true);
-    assert.equal(success.rolledBack, false);
+    assert.equal(result.cooldown_ok, true);
+    assert.equal(result.archive_id, "archive-test");
     assert.deepEqual(success.archived, source);
     assert.deepEqual(success.updated, active);
+    assert.equal(success.statementCount, 1);
+    assert.match(success.statement, /INSERT INTO conversation_archives/);
+    assert.match(success.statement, /UPDATE conversation_threads/);
+    assert.doesNotMatch(success.statement, /BEGIN|COMMIT|ROLLBACK/);
+});
 
-    const failure = setupDatabase(source, { failUpdate: true });
+test("compression reports cooldown without changing archive or active history", async () => {
+    const source = [message("ordinary", "user", "An ordinary message")];
+    const state = setupDatabase(source, { cooldownOk: false });
+    const result = await repository.compressThread("user-a", "thread_test", payload(source, [
+        message("summary", "assistant", "Summary")
+    ]));
+
+    assert.equal(result.cooldown_ok, false);
+    assert.equal(result.compression, null);
+    assert.equal(state.archived, null);
+    assert.equal(state.updated, null);
+});
+
+test("a database failure leaves archive and active history unchanged", async () => {
+    const source = [message("ordinary", "user", "An ordinary message")];
+    const state = setupDatabase(source, { failStatement: true });
+
     await assert.rejects(
-        repository.compressThread("user-a", "thread_test", payload(source, active)),
-        /simulated update failure/
+        repository.compressThread("user-a", "thread_test", payload(source, [
+            message("summary", "assistant", "Summary")
+        ])),
+        /simulated atomic statement failure/
     );
-    assert.equal(failure.updateAttempted, true);
-    assert.equal(failure.rolledBack, true);
-    assert.equal(failure.committed, false);
-    assert.equal(failure.archived, null);
+
+    assert.equal(state.archived, null);
+    assert.equal(state.updated, null);
 });
