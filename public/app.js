@@ -765,14 +765,17 @@ async function buildPillarRequest(thread, operation) {
         throw new Error(`${data.overflowStarred.length} starred message${data.overflowStarred.length === 1 ? "" : "s"} could not fit in the ${Number(data.tokenBudget).toLocaleString()} token estimate budget${tooLarge ? ", including a message larger than the entire budget" : ""}. Shorten or unstar messages before continuing; none were silently dropped.`);
     }
     const messages = Array.isArray(data.selectedMessages) ? data.selectedMessages : [];
-    if (messages.length < 2) throw new Error("This conversation does not have enough saved messages to migrate or compress.");
+    const allMessages = Array.isArray(data.allMessages) ? data.allMessages : messages;
+    if ((operation === "compression" ? allMessages.length : messages.length) < 2) {
+        throw new Error("This conversation does not have enough saved messages to migrate or compress.");
+    }
     const history = messages.map(message =>
         `[${message.role === "user" ? "USER" : "ASSISTANT (unverified unless user-confirmed)"}; priority ${message.priority}; ${message.estimateSource.replaceAll("_", " ")} ${message.estimatedTokens} tokens]\n${message.content}`
     ).join("\n\n");
     return {
         apiId: activeApi.id,
         messages,
-        allMessages: Array.isArray(data.allMessages) ? data.allMessages : messages,
+        allMessages,
         tokenEstimate: Number(data.totalSourceTokens) || 0,
         history,
         budget: Number(data.tokenBudget) || 0,
