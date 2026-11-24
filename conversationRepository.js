@@ -159,57 +159,64 @@ async function updatePriority(userId, threadId, messageId, priority) {
     validateThreadId(threadId);
     await ensureSchema();
 
-    // Serialize priority changes for this conversation. Without a row lock,
-    // concurrent requests can both validate against the same old message list
-    // and overwrite one another or exceed a priority limit.
-    const client = await pool.connect();
-    try {
-        await client.query("BEGIN");
-        const locked = await client.query(
-            "SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 FOR UPDATE",
-            [String(userId), threadId]
-        );
-        if (!locked.rows[0]) throw new Error("Conversation not found.");
+    if (![0, 1, 2, 3].includes(priority)) {
+        throw new Error("Priority must be between 0 and 3.");
+    }
 
-        const current = rowToThread(locked.rows[0]);
-        const target = current.messages.find(message => message.message_id === messageId);
-        if (!target) throw new Error("Message not found.");
+    // Neon HTTP's query client does not expose pool.connect()/interactive
+    // transactions. Keep validation and mutation in one atomic PostgreSQL UPDATE.
+    const sql = "UPDATE conversation_threads AS thread " +
+        "SET messages = (SELECT COALESCE(jsonb_agg(CASE WHEN item.message->>'message_id' = $3 " +
+        "THEN jsonb_set(item.message, '{priority}', to_jsonb($4::integer), true) ELSE item.message END " +
+        "ORDER BY item.ordinality), '[]'::jsonb) " +
+        "FROM jsonb_array_elements(thread.messages) WITH ORDINALITY AS item(message, ordinality)), " +
+        "updated_at = NOW() " +
+        "WHERE thread.user_id = $1 AND thread.thread_id = $2 " +
+        "AND EXISTS (SELECT 1 FROM jsonb_array_elements(thread.messages) AS current(message) " +
+        "WHERE current.message->>'message_id' = $3 " +
+        "AND COALESCE(NULLIF(current.message->>'priority', '')::integer, 0) = (($4::integer + 3) % 4)) " +
+        "AND ($4::integer = 0 OR (" +
+        "(SELECT COUNT(*) FROM jsonb_array_elements(thread.messages) AS current(message) " +
+        "WHERE COALESCE(NULLIF(current.message->>'priority', '')::integer, 0) = $4::integer) " +
+        "< CASE $4::integer WHEN 1 THEN 10 WHEN 2 THEN 7 WHEN 3 THEN 3 ELSE 0 END " +
+        "AND (COALESCE((SELECT NULLIF(target.message->>'priority', '')::integer " +
+        "FROM jsonb_array_elements(thread.messages) AS target(message) " +
+        "WHERE target.message->>'message_id' = $3), 0) > 0 OR " +
+        "(SELECT COUNT(*) FROM jsonb_array_elements(thread.messages) AS current(message) " +
+        "WHERE COALESCE(NULLIF(current.message->>'priority', '')::integer, 0) > 0) < 20))) " +
+        "RETURNING messages";
 
+    const result = await pool.query(sql, [String(userId), threadId, messageId, priority]);
+    if (result.rows[0]) {
+        const messages = Array.isArray(result.rows[0].messages) ? result.rows[0].messages : [];
+        return messages.find(message => message.message_id === messageId) || null;
+    }
+
+    // This follow-up read is only for an actionable error message; the update
+    // itself was a single atomic statement and cannot partially apply.
+    const current = await getThread(userId, threadId);
+    if (!current) throw new Error("Conversation not found.");
+    const target = current.messages.find(message => message.message_id === messageId);
+    if (!target) throw new Error("Message not found.");
+    const prior = Number.isInteger(target.priority) ? target.priority : 0;
+    if (priority !== (prior + 1) % 4) {
+        throw new Error("Priority must follow the 0 → 1 → 2 → 3 → 0 cycle.");
+    }
+
+    if (priority > 0) {
         const counts = { 1: 0, 2: 0, 3: 0 };
         let total = 0;
         for (const message of current.messages) {
             const value = Number.isInteger(message.priority) ? message.priority : 0;
             if (value > 0) { total++; counts[value]++; }
         }
-
-        const prior = Number.isInteger(target.priority) ? target.priority : 0;
-        if (![0, 1, 2, 3].includes(priority) || priority !== (prior + 1) % 4) {
-            throw new Error("Priority must follow the 0 → 1 → 2 → 3 → 0 cycle.");
-        }
-        if (priority > 0 && priority !== prior &&
-            (counts[priority] >= ({ 1: 10, 2: 7, 3: 3 })[priority] || (prior === 0 && total >= 20))) {
+        if (counts[priority] >= ({ 1: 10, 2: 7, 3: 3 })[priority] ||
+            (prior === 0 && total >= 20)) {
             throw new Error(`Priority ${priority} limit reached for this conversation.`);
         }
-
-        const messages = current.messages.map(message =>
-            message.message_id === messageId ? { ...message, priority } : message
-        );
-        const updated = await client.query(
-            "UPDATE conversation_threads SET messages=$3::jsonb, updated_at=NOW() WHERE user_id=$1 AND thread_id=$2 RETURNING messages",
-            [String(userId), threadId, JSON.stringify(messages)]
-        );
-        if (!updated.rows[0]) throw new Error("Priority update did not affect the conversation.");
-
-        await client.query("COMMIT");
-        return messages.find(message => message.message_id === messageId);
-    } catch (error) {
-        try { await client.query("ROLLBACK"); } catch (_) {}
-        throw error;
-    } finally {
-        client.release();
     }
+    throw new Error("Priority update was not applied. Refresh the conversation and try again.");
 }
-
 async function deleteMessage(userId, threadId, messageId) {
     const current = await getThread(userId, threadId);
     if (!current) return false;
