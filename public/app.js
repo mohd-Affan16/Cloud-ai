@@ -868,7 +868,7 @@ function showCompressionReview(summary, metadata) {
         const title = document.createElement("h2");
         title.textContent = "Review Compressed Context";
         const details = document.createElement("p");
-        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()} (${metadata.estimateSource}). Input capacity: ${metadata.inputCapacity.toLocaleString()} estimated tokens (${metadata.capacitySource}). Compression selection target: ${metadata.selectedTokens.toLocaleString()} / ${metadata.tokenBudget.toLocaleString()} estimated tokens.`;
+        details.textContent = `This will replace ${metadata.sourceMessageCount} active messages with the summary and preserve starred messages. Estimated tokens: ${metadata.sourceTokenEstimate.toLocaleString()} → ${metadata.compressedTokenEstimate.toLocaleString()} (${metadata.estimateSource}). Estimated usable input capacity: ${metadata.inputCapacity.toLocaleString()} tokens (${metadata.capacitySource}). Per-chunk source target: ${metadata.tokenBudget.toLocaleString()} tokens. All values are estimates.`;
         const preview = document.createElement("div");
         preview.className = "pillar-review-preview markdown-content";
         renderAssistantMarkdown(preview, summary);
