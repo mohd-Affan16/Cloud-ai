@@ -504,13 +504,23 @@ app.put("/api/threads/:threadId/compression", async (req, res) => {
         }
         const normalizedActive = conversationRepository.normalizeMessages(activeMessages);
         if (normalizedActive.length < 1 || normalizedActive.length > thread.messages.length) return res.status(400).json({ error: "The compressed conversation cannot contain more messages than the current history." });
+        const activeById = new Map(normalizedActive.map(message => [message.message_id, message]));
+        const missingStarred = thread.messages.some(source => {
+            if (!(source.priority > 0)) return false;
+            const active = activeById.get(source.message_id);
+            return !active || active.role !== source.role || active.content !== source.content ||
+                (active.priority || 0) !== (source.priority || 0);
+        });
+        if (missingStarred) return res.status(400).json({ error: "Compression must preserve every starred message exactly as it appears in the original conversation." });
         const compression = { summary: summary.trim(), sourceTokenEstimate, compressedTokenEstimate, sourceMessageCount, lastSuccessfulAt: now, estimateSource: req.body.estimateSource || "estimated" };
         const title = `Original: ${String(originalTitle || thread.title || "Conversation").replace(/^Original:\s*/i, "").trim().slice(0, 120)}`;
         const sourceDigest = require("crypto").createHash("sha256").update(JSON.stringify(thread.messages)).digest("hex");
         const result = await conversationRepository.compressThread(userId, req.params.threadId, {
-            compression, activeMessages: normalizedActive, title, archiveId: `archive_${now}_${require("crypto").randomBytes(5).toString("hex")}`, sourceDigest
+            compression, activeMessages: normalizedActive, expectedSourceMessages: thread.messages,
+            title, archiveId: `archive_${now}_${require("crypto").randomBytes(5).toString("hex")}`, sourceDigest
         });
         if (!result.thread_exists) return res.status(404).json({ error: "The original conversation was not found." });
+        if (result.source_matches === false) return res.status(409).json({ error: "This conversation changed while compression was running. Nothing was replaced; refresh the conversation and try again." });
         if (!result.cooldown_ok) return res.status(429).json({ error: "Manual compression is available after the 24-hour cooldown." });
         if (!result.compression) throw new Error("Compression could not be committed. The original conversation remains unchanged.");
         return res.json({ success: true, compression: result.compression, archiveId: result.archive_id });
