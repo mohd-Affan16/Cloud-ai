@@ -4,7 +4,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "node --test test/pillar-reliability.test.js",
+    "test": "node --test",
     "start": "node --no-network-family-autoselection server.js"
   },
   "repository": {
