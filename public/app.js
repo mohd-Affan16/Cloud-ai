@@ -772,6 +772,7 @@ async function buildPillarRequest(thread, operation) {
     return {
         apiId: activeApi.id,
         messages,
+        allMessages: Array.isArray(data.allMessages) ? data.allMessages : messages,
         tokenEstimate: Number(data.totalSourceTokens) || 0,
         history,
         budget: Number(data.tokenBudget) || 0,
@@ -987,8 +988,36 @@ async function runCompression() {
         thread = await syncThreadMessagesFromServer(thread.id) || thread;
         if (getActiveThread()?.id !== thread.id) throw new Error("The active conversation changed. Reopen its context tools and try again.");
         const request = await buildPillarRequest(thread, "compression");
-        const generated = await generatePillarContent(request.apiId, thread.id, request.history,
-            "Compress ONLY this conversation into a concise reusable context record. The source messages are labeled USER or ASSISTANT. Treat USER messages as the authoritative record of the user's goals, facts, requirements, and decisions. Assistant messages are unverified suggestions unless the user explicitly confirms them. Never turn assistant examples, guesses, or general explanations into project facts. Do not invent a project objective, model limits, technical stack, test results, or pending work. If the source does not state a fact, write Not specified. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Preserve starred messages. Merge repetition without losing unique user instructions. This summary will replace ordinary messages in this one conversation only; it will not affect any other conversation.", 1600);
+        const compressionInstruction = "Compress ONLY the supplied portion of this conversation into a concise context record. USER messages are authoritative. ASSISTANT messages are unverified suggestions unless explicitly confirmed by the user. Do not invent facts. Preserve unique instructions, decisions, technical details, progress, unresolved issues, and pending tasks.";
+        const sourceForCompression = request.allMessages.length ? request.allMessages : request.messages;
+        const chunks = [];
+        let currentChunk = [];
+        let currentTokens = 0;
+        const chunkLimit = Math.max(500, request.budget || 3000);
+        for (const message of sourceForCompression) {
+            const cost = Number.isFinite(message.estimatedTokens) ? message.estimatedTokens : Math.max(1, Math.ceil((message.content || "").length / 4));
+            if (currentChunk.length && currentTokens + cost > chunkLimit) {
+                chunks.push(currentChunk);
+                currentChunk = [];
+                currentTokens = 0;
+            }
+            currentChunk.push(message);
+            currentTokens += cost;
+        }
+        if (currentChunk.length) chunks.push(currentChunk);
+        if (!chunks.length) throw new Error("No conversation messages were available to compress.");
+        const chunkSummaries = [];
+        for (let index = 0; index < chunks.length; index++) {
+            const chunkText = chunks[index].map(message =>
+                `[${message.role === "user" ? "USER" : "ASSISTANT"}; priority ${message.priority || 0}]\\n${message.content}`
+            ).join("\\n\\n");
+            setContextActionStatus(`Summarizing conversation part ${index + 1} of ${chunks.length}…`);
+            const part = await generatePillarContent(request.apiId, thread.id, chunkText, compressionInstruction, 350);
+            chunkSummaries.push(part.reply);
+        }
+        const combinedSource = chunkSummaries.map((summary, index) => `PART ${index + 1} SUMMARY:\\n${summary}`).join("\\n\\n");
+        const finalInstruction = "Combine all supplied part summaries into one concise reusable context record for this conversation. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Merge repetition but preserve every unique user instruction and decision. Do not invent facts. If a fact is not stated, write Not specified.";
+        const generated = await generatePillarContent(request.apiId, thread.id, combinedSource, finalInstruction, 1600);
         const compressed = generated.reply;
         const tokenEstimateResponse = await fetch("/api/token-estimate", {
             method: "POST", credentials: "same-origin",
@@ -1027,7 +1056,7 @@ async function runCompression() {
                 throw new Error("The edited summary no longer reduces the estimated context size. No changes were saved.");
             }
         }
-        const summarizedMessages = request.messages.filter(message => message.priority > 0).map(message => ({
+        const summarizedMessages = request.allMessages.filter(message => message.priority > 0).map(message => ({
             role: message.role,
             content: message.content,
             priority: message.priority,
