@@ -988,7 +988,7 @@ async function runCompression() {
         thread = await syncThreadMessagesFromServer(thread.id) || thread;
         if (getActiveThread()?.id !== thread.id) throw new Error("The active conversation changed. Reopen its context tools and try again.");
         const request = await buildPillarRequest(thread, "compression");
-        const compressionInstruction = "Compress ONLY the supplied portion of this conversation into a concise context record. USER messages are authoritative. ASSISTANT messages are unverified suggestions unless explicitly confirmed by the user. Do not invent facts. Preserve unique instructions, decisions, technical details, progress, unresolved issues, and pending tasks.";
+        const compressionInstruction = "Create a useful, information-dense record of the supplied conversation messages for continuing the SAME conversation after compression. Do not reduce the conversation to a list of topics or generic statements. Preserve concrete user goals and requests; exact constraints and preferences; named entities, technical terms, settings, versions, errors, and important values; decisions and their reasons; steps already completed and their outcomes; useful explanations or answers given by the assistant; unresolved questions, blockers, and next actions. Keep important relationships and sequence when they affect meaning. USER messages are authoritative for the user’s intent and facts about the user’s project. ASSISTANT messages are not automatically confirmed facts: retain useful assistant explanations as attributed guidance, and mark claims or suggestions as unconfirmed unless the user accepted or verified them. Preserve all unique information; remove only repetition and irrelevant small talk. Do not invent, guess, or import information from outside the supplied messages. If a detail is unclear, say it is unclear rather than filling the gap.";
         const sourceForCompression = request.allMessages.length ? request.allMessages : request.messages;
         const chunks = [];
         let currentChunk = [];
@@ -1031,10 +1031,10 @@ async function runCompression() {
                 `[${message.role === "user" ? "USER" : "ASSISTANT"}; priority ${message.priority || 0}]\\n${message.content}`
             ).join("\\n\\n");
             setContextActionStatus(`Summarizing conversation part ${index + 1} of ${chunks.length}…`);
-            const part = await generatePillarContent(request.apiId, thread.id, chunkText, compressionInstruction, 250);
+            const part = await generatePillarContent(request.apiId, thread.id, chunkText, compressionInstruction, 350);
             summaries.push(part.reply);
         }
-        const finalInstruction = "Combine the supplied summaries into one concise reusable context record for this conversation. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Merge repetition but preserve every unique user instruction and decision. Do not invent facts. If a fact is not stated, write Not specified.";
+        const finalInstruction = "Synthesize ALL supplied part summaries into one reusable context record that lets a new assistant continue this exact conversation without asking the user to repeat important information. Do not turn the result into a topic list. Preserve every distinct requirement, constraint, preference, decision, reason, technical detail, identifier, error, completed action, test result, unresolved issue, and next step. Retain specific values and names exactly when supplied. Distinguish user-confirmed facts and decisions from assistant suggestions or unverified claims; never upgrade an assistant suggestion into a confirmed decision. Merge duplicates, but do not discard unique details merely to make the summary shorter. Include these sections: Objective; User Requirements and Constraints; Decisions and Rationale; Important Conversation Details; Technical Context; Completed Work and Outcomes; Current State; Unresolved Issues and Risks; Pending Tasks / Next Steps. If a section has no supported information, write Not specified. Do not invent facts or import information from outside the supplied summaries.";
         let round = 1;
         while (summaries.length > 1) {
             const reduced = [];
@@ -1048,7 +1048,7 @@ async function runCompression() {
                     `SUMMARY ${index + offset + 1}:\\n${summary}`
                 ).join("\\n\\n");
                 setContextActionStatus(`Combining compression summaries (pass ${round})…`);
-                const merged = await generatePillarContent(request.apiId, thread.id, groupText, finalInstruction, 500);
+                const merged = await generatePillarContent(request.apiId, thread.id, groupText, finalInstruction, 700);
                 reduced.push(merged.reply);
             }
             if (reduced.length >= summaries.length) break;
