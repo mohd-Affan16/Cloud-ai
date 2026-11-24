@@ -158,24 +158,56 @@ async function deleteThread(userId, threadId) {
 async function updatePriority(userId, threadId, messageId, priority) {
     validateThreadId(threadId);
     await ensureSchema();
-    const current = await getThread(userId, threadId);
-    if (!current) throw new Error("Conversation not found.");
-    const target = current.messages.find(message => message.message_id === messageId);
-    if (!target) throw new Error("Message not found.");
-    const counts = { 1: 0, 2: 0, 3: 0 };
-    let total = 0;
-    for (const message of current.messages) {
-        const value = Number.isInteger(message.priority) ? message.priority : 0;
-        if (value > 0) { total++; counts[value]++; }
+
+    // Serialize priority changes for this conversation. Without a row lock,
+    // concurrent requests can both validate against the same old message list
+    // and overwrite one another or exceed a priority limit.
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        const locked = await client.query(
+            "SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 FOR UPDATE",
+            [String(userId), threadId]
+        );
+        if (!locked.rows[0]) throw new Error("Conversation not found.");
+
+        const current = rowToThread(locked.rows[0]);
+        const target = current.messages.find(message => message.message_id === messageId);
+        if (!target) throw new Error("Message not found.");
+
+        const counts = { 1: 0, 2: 0, 3: 0 };
+        let total = 0;
+        for (const message of current.messages) {
+            const value = Number.isInteger(message.priority) ? message.priority : 0;
+            if (value > 0) { total++; counts[value]++; }
+        }
+
+        const prior = Number.isInteger(target.priority) ? target.priority : 0;
+        if (![0, 1, 2, 3].includes(priority) || priority !== (prior + 1) % 4) {
+            throw new Error("Priority must follow the 0 → 1 → 2 → 3 → 0 cycle.");
+        }
+        if (priority > 0 && priority !== prior &&
+            (counts[priority] >= ({ 1: 10, 2: 7, 3: 3 })[priority] || (prior === 0 && total >= 20))) {
+            throw new Error(`Priority ${priority} limit reached for this conversation.`);
+        }
+
+        const messages = current.messages.map(message =>
+            message.message_id === messageId ? { ...message, priority } : message
+        );
+        const updated = await client.query(
+            "UPDATE conversation_threads SET messages=$3::jsonb, updated_at=NOW() WHERE user_id=$1 AND thread_id=$2 RETURNING messages",
+            [String(userId), threadId, JSON.stringify(messages)]
+        );
+        if (!updated.rows[0]) throw new Error("Priority update did not affect the conversation.");
+
+        await client.query("COMMIT");
+        return messages.find(message => message.message_id === messageId);
+    } catch (error) {
+        try { await client.query("ROLLBACK"); } catch (_) {}
+        throw error;
+    } finally {
+        client.release();
     }
-    const prior = Number.isInteger(target.priority) ? target.priority : 0;
-    if (priority !== (prior + 1) % 4) throw new Error("Priority must follow the 0 → 1 → 2 → 3 → 0 cycle.");
-    if (priority > 0 && priority !== prior && (counts[priority] >= ({ 1: 10, 2: 7, 3: 3 })[priority] || (prior === 0 && total >= 20))) {
-        throw new Error(`Priority ${priority} limit reached for this conversation.`);
-    }
-    const messages = current.messages.map(message => message.message_id === messageId ? { ...message, priority } : message);
-    await pool.query("UPDATE conversation_threads SET messages=$3::jsonb, updated_at=NOW() WHERE user_id=$1 AND thread_id=$2", [String(userId), threadId, JSON.stringify(messages)]);
-    return messages.find(message => message.message_id === messageId);
 }
 
 async function deleteMessage(userId, threadId, messageId) {
