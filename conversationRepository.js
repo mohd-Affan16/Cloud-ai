@@ -210,7 +210,7 @@ async function compressThread(userId, threadId, payload) {
     const activeMessages = normalizeMessages(payload.activeMessages);
     const result = await pool.query(
         `WITH source AS (
-            SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2
+            SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 AND messages=$9::jsonb
         ), eligible AS (
             SELECT * FROM source WHERE
               CASE WHEN (compression->>'lastSuccessfulAt') ~ '^[0-9]{10,13}$'
@@ -237,9 +237,10 @@ async function compressThread(userId, threadId, payload) {
         )
         SELECT (SELECT compression FROM updated LIMIT 1) AS compression,
                (SELECT archive_id FROM archive_existing LIMIT 1) AS archive_id,
-               EXISTS(SELECT 1 FROM source) AS thread_exists,
+               EXISTS(SELECT 1 FROM conversation_threads WHERE user_id=$1 AND thread_id=$2) AS thread_exists,
+               EXISTS(SELECT 1 FROM source) AS source_matches,
                EXISTS(SELECT 1 FROM eligible) AS cooldown_ok`,
-        [String(userId), threadId, payload.archiveId, payload.title, payload.sourceDigest, JSON.stringify(activeMessages), JSON.stringify(payload.compression), Date.now() - COOLDOWN_MS]
+        [String(userId), threadId, payload.archiveId, payload.title, payload.sourceDigest, JSON.stringify(activeMessages), JSON.stringify(payload.compression), Date.now() - COOLDOWN_MS, JSON.stringify(normalizeMessages(payload.expectedSourceMessages))]
     );
     return result.rows[0] || { thread_exists: false, cooldown_ok: true };
 }
