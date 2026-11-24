@@ -50,6 +50,12 @@ function selectPillarMessages(messages, operation, provider, model, previousUsag
         if (usedTokens + cost <= tokenBudget) {
             selected.push(message);
             usedTokens += cost;
+        } else if (message.priority > 0 && operation === "compression") {
+            // Compression summarizes the full source in bounded chunks. Keep every
+            // starred message in the source set even when it exceeds the selection
+            // target; the original is preserved separately in active history.
+            selected.push(message);
+            usedTokens += cost;
         } else if (message.priority > 0) {
             overflowStarred.push({ index: message.index, priority: message.priority, estimatedTokens: cost });
         }
@@ -69,6 +75,7 @@ function selectPillarMessages(messages, operation, provider, model, previousUsag
         omittedMessageCount: normalized.length - chronological.length,
         overflowStarred,
         capacity: capacityKnown ? config.contextWindow : null,
+        inputCapacity,
         capacitySource: capacityKnown ? "model_registry" : "conservative_fallback",
         estimateSources: [...new Set(normalized.map(message => message.estimateSource))]
     };
