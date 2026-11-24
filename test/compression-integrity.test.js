@@ -17,6 +17,7 @@ function message(id, role, content, priority = 0) {
 function setupDatabase(currentMessages, options = {}) {
     const state = {
         archived: null,
+        pendingArchive: null,
         updated: null,
         committed: false,
         rolledBack: false,
@@ -36,8 +37,14 @@ function setupDatabase(currentMessages, options = {}) {
     pool.connect = async () => ({
         async query(sql, params = []) {
             if (sql === "BEGIN" || sql === "ROLLBACK" || sql === "COMMIT") {
-                if (sql === "ROLLBACK") state.rolledBack = true;
-                if (sql === "COMMIT") state.committed = true;
+                if (sql === "ROLLBACK") {
+                    state.rolledBack = true;
+                    state.pendingArchive = null;
+                }
+                if (sql === "COMMIT") {
+                    state.committed = true;
+                    state.archived = state.pendingArchive;
+                }
                 return { rows: [], rowCount: 0 };
             }
             if (sql.includes("SELECT * FROM conversation_threads") && sql.includes("FOR UPDATE")) {
@@ -53,7 +60,7 @@ function setupDatabase(currentMessages, options = {}) {
                 };
             }
             if (sql.includes("INSERT INTO conversation_archives")) {
-                state.archived = JSON.parse(params[5]);
+                state.pendingArchive = JSON.parse(params[5]);
                 return { rows: [], rowCount: 1 };
             }
             if (sql.includes("UPDATE conversation_threads SET messages=")) {
@@ -135,4 +142,5 @@ test("archive and active-history replacement commit together, and update failure
     assert.equal(failure.updateAttempted, true);
     assert.equal(failure.rolledBack, true);
     assert.equal(failure.committed, false);
+    assert.equal(failure.archived, null);
 });
