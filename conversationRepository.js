@@ -235,9 +235,10 @@ async function compressThread(userId, threadId, payload) {
 
         const current = rowToThread(locked.rows[0]);
         const currentJson = JSON.stringify(current.messages);
-        const expectedJson = JSON.stringify(expectedMessages);
-        const currentDigest = crypto.createHash("sha256").update(currentJson).digest("hex");
-        if (currentJson !== expectedJson || currentDigest !== payload.sourceDigest) {
+        const currentSnapshot = normalizeMessages(current.messages);
+        const currentSnapshotJson = JSON.stringify(currentSnapshot);
+        const expectedSnapshotJson = JSON.stringify(expectedMessages);
+        if (currentSnapshotJson !== expectedSnapshotJson) {
             await client.query("ROLLBACK");
             return { thread_exists: true, source_matches: false, cooldown_ok: true, compression: null, archive_id: null };
         }
