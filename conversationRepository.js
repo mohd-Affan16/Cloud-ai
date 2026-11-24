@@ -208,41 +208,65 @@ async function compressThread(userId, threadId, payload) {
     validateThreadId(threadId);
     await ensureSchema();
     const activeMessages = normalizeMessages(payload.activeMessages);
-    const result = await pool.query(
-        `WITH source AS (
-            SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 AND messages=$9::jsonb
-        ), eligible AS (
-            SELECT * FROM source WHERE
-              CASE WHEN (compression->>'lastSuccessfulAt') ~ '^[0-9]{10,13}$'
-                THEN CASE WHEN length(compression->>'lastSuccessfulAt') = 10
-                     THEN (compression->>'lastSuccessfulAt')::bigint * 1000
-                     ELSE (compression->>'lastSuccessfulAt')::bigint END <= $8::bigint
-                ELSE TRUE END
-        ), archive_insert AS (
-            INSERT INTO conversation_archives (archive_id,user_id,source_thread_id,title,archived_at,source_digest,messages)
-            SELECT $3,$1,$2,$4,NOW(),$5,messages FROM eligible
-            ON CONFLICT (user_id,source_thread_id,source_digest) DO NOTHING
-            RETURNING archive_id
-        ), archive_existing AS (
-            SELECT archive_id FROM archive_insert
-            UNION ALL
-            SELECT a.archive_id FROM conversation_archives a JOIN eligible e
-              ON a.user_id=$1 AND a.source_thread_id=$2 AND a.source_digest=$5
-            LIMIT 1
-        ), updated AS (
-            UPDATE conversation_threads t SET messages=$6::jsonb, compression=$7::jsonb, updated_at=NOW()
-            FROM eligible e, archive_existing a
-            WHERE t.user_id=$1 AND t.thread_id=$2
-            RETURNING t.compression
-        )
-        SELECT (SELECT compression FROM updated LIMIT 1) AS compression,
-               (SELECT archive_id FROM archive_existing LIMIT 1) AS archive_id,
-               EXISTS(SELECT 1 FROM conversation_threads WHERE user_id=$1 AND thread_id=$2) AS thread_exists,
-               EXISTS(SELECT 1 FROM source) AS source_matches,
-               EXISTS(SELECT 1 FROM eligible) AS cooldown_ok`,
-        [String(userId), threadId, payload.archiveId, payload.title, payload.sourceDigest, JSON.stringify(activeMessages), JSON.stringify(payload.compression), Date.now() - COOLDOWN_MS, JSON.stringify(normalizeMessages(payload.expectedSourceMessages))]
-    );
-    return result.rows[0] || { thread_exists: false, cooldown_ok: true };
+    const expectedMessages = normalizeMessages(payload.expectedSourceMessages);
+    const client = await pool.connect();
+
+    try {
+        await client.query("BEGIN");
+
+        // Lock the thread before checking the source snapshot. Message writes
+        // must wait until the archive and compressed history are committed.
+        const locked = await client.query(
+            "SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 FOR UPDATE",
+            [String(userId), threadId]
+        );
+        if (!locked.rows[0]) {
+            await client.query("ROLLBACK");
+            return { thread_exists: false, source_matches: false, cooldown_ok: true };
+        }
+
+        const current = rowToThread(locked.rows[0]);
+        if (JSON.stringify(current.messages) !== JSON.stringify(expectedMessages)) {
+            await client.query("ROLLBACK");
+            return { thread_exists: true, source_matches: false, cooldown_ok: true };
+        }
+
+        if (cooldownRemaining(current.compression?.lastSuccessfulAt) > 0) {
+            await client.query("ROLLBACK");
+            return { thread_exists: true, source_matches: true, cooldown_ok: false };
+        }
+
+        await client.query(
+            `INSERT INTO conversation_archives
+                (archive_id,user_id,source_thread_id,title,archived_at,source_digest,messages)
+             VALUES ($1,$2,$3,$4,NOW(),$5,$6::jsonb)
+             ON CONFLICT (user_id,source_thread_id,source_digest) DO NOTHING`,
+            [payload.archiveId, String(userId), threadId, payload.title, payload.sourceDigest, JSON.stringify(current.messages)]
+        );
+
+        const updated = await client.query(
+            "UPDATE conversation_threads SET messages=$3::jsonb, compression=$4::jsonb, updated_at=NOW() WHERE user_id=$1 AND thread_id=$2 RETURNING compression",
+            [String(userId), threadId, JSON.stringify(activeMessages), JSON.stringify(payload.compression)]
+        );
+
+        await client.query("COMMIT");
+        const archive = await client.query(
+            "SELECT archive_id FROM conversation_archives WHERE user_id=$1 AND source_thread_id=$2 AND source_digest=$3",
+            [String(userId), threadId, payload.sourceDigest]
+        );
+        return {
+            compression: updated.rows[0]?.compression || null,
+            archive_id: archive.rows[0]?.archive_id || null,
+            thread_exists: true,
+            source_matches: true,
+            cooldown_ok: true
+        };
+    } catch (error) {
+        try { await client.query("ROLLBACK"); } catch (_) {}
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 async function getArchives(userId) {
