@@ -548,6 +548,7 @@ app.get("/api/threads/:threadId/pillar-source", async (req, res) => {
         return res.json({
             thread: { id: thread.id, title: thread.title, compression: thread.compression },
             selectedMessages: selection.messages,
+            allMessages: thread.messages,
             tokenBudget: selection.tokenBudget,
             selectedTokens: selection.selectedTokens,
             totalSourceTokens: selection.totalSourceTokens,
