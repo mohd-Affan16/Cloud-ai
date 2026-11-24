@@ -995,30 +995,67 @@ async function runCompression() {
         let currentTokens = 0;
         const chunkLimit = Math.max(500, request.budget || 3000);
         for (const message of sourceForCompression) {
-            const cost = Number.isFinite(message.estimatedTokens) ? message.estimatedTokens : Math.max(1, Math.ceil((message.content || "").length / 4));
-            if (currentChunk.length && currentTokens + cost > chunkLimit) {
-                chunks.push(currentChunk);
-                currentChunk = [];
-                currentTokens = 0;
+            const content = String(message.content || "");
+            const estimated = Number.isFinite(message.estimatedTokens)
+                ? message.estimatedTokens
+                : Math.max(1, Math.ceil(content.length / 4));
+            const pieces = estimated > chunkLimit
+                ? Array.from({ length: Math.ceil(estimated / chunkLimit) }, (_, partIndex, all) => {
+                    const start = Math.floor(content.length * partIndex / all.length);
+                    const end = Math.floor(content.length * (partIndex + 1) / all.length);
+                    return content.slice(start, end);
+                })
+                : [content];
+            for (let partIndex = 0; partIndex < pieces.length; partIndex++) {
+                const piece = pieces[partIndex];
+                const pieceCost = Math.max(1, Math.ceil(estimated / pieces.length));
+                if (currentChunk.length && currentTokens + pieceCost > chunkLimit) {
+                    chunks.push(currentChunk);
+                    currentChunk = [];
+                    currentTokens = 0;
+                }
+                currentChunk.push({
+                    ...message,
+                    content: pieces.length > 1
+                        ? `[Message segment ${partIndex + 1}/${pieces.length}]\\n${piece}`
+                        : piece
+                });
+                currentTokens += pieceCost;
             }
-            currentChunk.push(message);
-            currentTokens += cost;
         }
         if (currentChunk.length) chunks.push(currentChunk);
         if (!chunks.length) throw new Error("No conversation messages were available to compress.");
-        const chunkSummaries = [];
+        let summaries = [];
         for (let index = 0; index < chunks.length; index++) {
             const chunkText = chunks[index].map(message =>
                 `[${message.role === "user" ? "USER" : "ASSISTANT"}; priority ${message.priority || 0}]\\n${message.content}`
             ).join("\\n\\n");
             setContextActionStatus(`Summarizing conversation part ${index + 1} of ${chunks.length}…`);
-            const part = await generatePillarContent(request.apiId, thread.id, chunkText, compressionInstruction, 350);
-            chunkSummaries.push(part.reply);
+            const part = await generatePillarContent(request.apiId, thread.id, chunkText, compressionInstruction, 250);
+            summaries.push(part.reply);
         }
-        const combinedSource = chunkSummaries.map((summary, index) => `PART ${index + 1} SUMMARY:\\n${summary}`).join("\\n\\n");
-        const finalInstruction = "Combine all supplied part summaries into one concise reusable context record for this conversation. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Merge repetition but preserve every unique user instruction and decision. Do not invent facts. If a fact is not stated, write Not specified.";
-        const generated = await generatePillarContent(request.apiId, thread.id, combinedSource, finalInstruction, 1600);
-        const compressed = generated.reply;
+        const finalInstruction = "Combine the supplied summaries into one concise reusable context record for this conversation. Include Project Objective, User Requirements, Confirmed Decisions, Technical Context, Current Progress, Unresolved Issues, Pending Tasks, and Constraints. Merge repetition but preserve every unique user instruction and decision. Do not invent facts. If a fact is not stated, write Not specified.";
+        let round = 1;
+        while (summaries.length > 1) {
+            const reduced = [];
+            for (let index = 0; index < summaries.length; index += 4) {
+                const group = summaries.slice(index, index + 4);
+                if (group.length === 1 && summaries.length <= 4) {
+                    reduced.push(group[0]);
+                    continue;
+                }
+                const groupText = group.map((summary, offset) =>
+                    `SUMMARY ${index + offset + 1}:\\n${summary}`
+                ).join("\\n\\n");
+                setContextActionStatus(`Combining compression summaries (pass ${round})…`);
+                const merged = await generatePillarContent(request.apiId, thread.id, groupText, finalInstruction, 500);
+                reduced.push(merged.reply);
+            }
+            if (reduced.length >= summaries.length) break;
+            summaries = reduced;
+            round++;
+        }
+        const compressed = summaries[0];
         const tokenEstimateResponse = await fetch("/api/token-estimate", {
             method: "POST", credentials: "same-origin",
             headers: { "Content-Type": "application/json" },
