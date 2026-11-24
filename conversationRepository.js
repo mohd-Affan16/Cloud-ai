@@ -242,6 +242,7 @@ async function compressThread(userId, threadId, payload) {
 
     const activeMessages = normalizeMessages(payload.activeMessages);
     const expectedMessages = normalizeMessages(payload.expectedSourceMessages);
+    const expectedSourceJson = JSON.stringify(payload.expectedSourceMessages || []);
     const activeById = new Map(activeMessages.map(message => [message.message_id, message]));
     const missingStarred = expectedMessages.some(source => {
         if (source.priority <= 0) return false;
@@ -253,65 +254,73 @@ async function compressThread(userId, threadId, payload) {
         return { thread_exists: true, source_matches: true, cooldown_ok: true, compression: null, archive_id: null };
     }
 
-    const client = await pool.connect();
-    try {
-        await client.query("BEGIN");
-        const locked = await client.query(
-            "SELECT * FROM conversation_threads WHERE user_id=$1 AND thread_id=$2 FOR UPDATE",
-            [String(userId), threadId]
-        );
-        if (!locked.rows[0]) {
-            await client.query("ROLLBACK");
-            return { thread_exists: false, source_matches: false, cooldown_ok: true, compression: null, archive_id: null };
-        }
+    // One PostgreSQL statement replaces the unsupported interactive transaction
+    // previously attempted through Neon HTTP. The locked CTE serializes competing
+    // compression attempts; archive insertion and active-history replacement are
+    // part of the same statement and therefore commit or roll back together.
+    const sql = `WITH locked AS MATERIALIZED (
+            SELECT user_id, thread_id, title, messages, compression
+            FROM conversation_threads
+            WHERE user_id = $1 AND thread_id = $2
+            FOR UPDATE
+        ),
+        status AS MATERIALIZED (
+            SELECT *,
+                messages = $6::jsonb AS source_matches,
+                COALESCE(NULLIF(compression->>'lastSuccessfulAt', '')::numeric, 0)
+                    <= (EXTRACT(EPOCH FROM NOW()) * 1000 - 86400000) AS cooldown_ok
+            FROM locked
+        ),
+        eligible AS MATERIALIZED (
+            SELECT * FROM status WHERE source_matches AND cooldown_ok
+        ),
+        archived AS (
+            INSERT INTO conversation_archives
+                (archive_id, user_id, source_thread_id, title, archived_at, source_digest, messages)
+            SELECT $3, user_id, thread_id, $4, NOW(), $5, messages
+            FROM eligible
+            ON CONFLICT (user_id, source_thread_id, source_digest) DO NOTHING
+            RETURNING archive_id
+        ),
+        updated AS (
+            UPDATE conversation_threads AS thread
+            SET messages = $7::jsonb,
+                compression = $8::jsonb,
+                updated_at = NOW()
+            FROM eligible
+            WHERE thread.user_id = eligible.user_id
+              AND thread.thread_id = eligible.thread_id
+            RETURNING thread.compression
+        )
+        SELECT
+            EXISTS (SELECT 1 FROM status) AS thread_exists,
+            COALESCE((SELECT source_matches FROM status), false) AS source_matches,
+            COALESCE((SELECT cooldown_ok FROM status), true) AS cooldown_ok,
+            (SELECT compression FROM updated) AS compression,
+            COALESCE(
+                (SELECT archive_id FROM archived),
+                (SELECT archive_id FROM conversation_archives
+                 WHERE user_id = $1 AND source_thread_id = $2 AND source_digest = $5)
+            ) AS archive_id`;
 
-        const current = rowToThread(locked.rows[0]);
-        const currentJson = JSON.stringify(current.messages);
-        const currentSnapshot = normalizeMessages(current.messages);
-        const currentSnapshotJson = JSON.stringify(currentSnapshot);
-        const expectedSnapshotJson = JSON.stringify(expectedMessages);
-        if (currentSnapshotJson !== expectedSnapshotJson) {
-            await client.query("ROLLBACK");
-            return { thread_exists: true, source_matches: false, cooldown_ok: true, compression: null, archive_id: null };
-        }
-
-        if (cooldownRemaining(current.compression?.lastSuccessfulAt) > 0) {
-            await client.query("ROLLBACK");
-            return { thread_exists: true, source_matches: true, cooldown_ok: false, compression: null, archive_id: null };
-        }
-
-        await client.query(
-            `INSERT INTO conversation_archives
-                (archive_id,user_id,source_thread_id,title,archived_at,source_digest,messages)
-             VALUES ($1,$2,$3,$4,NOW(),$5,$6::jsonb)
-             ON CONFLICT (user_id,source_thread_id,source_digest) DO NOTHING`,
-            [payload.archiveId, String(userId), threadId, payload.title, payload.sourceDigest, currentJson]
-        );
-
-        const updated = await client.query(
-            "UPDATE conversation_threads SET messages=$3::jsonb, compression=$4::jsonb, updated_at=NOW() WHERE user_id=$1 AND thread_id=$2 RETURNING compression",
-            [String(userId), threadId, JSON.stringify(activeMessages), JSON.stringify(payload.compression)]
-        );
-        if (!updated.rows[0]) throw new Error("Conversation compression update did not affect the locked thread.");
-
-        await client.query("COMMIT");
-        const archive = await pool.query(
-            "SELECT archive_id FROM conversation_archives WHERE user_id=$1 AND source_thread_id=$2 AND source_digest=$3",
-            [String(userId), threadId, payload.sourceDigest]
-        );
-        return {
-            compression: updated.rows[0].compression || null,
-            archive_id: archive.rows[0]?.archive_id || null,
-            thread_exists: true,
-            source_matches: true,
-            cooldown_ok: true
-        };
-    } catch (error) {
-        try { await client.query("ROLLBACK"); } catch (_) {}
-        throw error;
-    } finally {
-        client.release();
-    }
+    const result = await pool.query(sql, [
+        String(userId),
+        threadId,
+        payload.archiveId,
+        payload.title,
+        payload.sourceDigest,
+        expectedSourceJson,
+        JSON.stringify(activeMessages),
+        JSON.stringify(payload.compression)
+    ]);
+    const row = result.rows[0] || {};
+    return {
+        thread_exists: row.thread_exists === true,
+        source_matches: row.source_matches === true,
+        cooldown_ok: row.cooldown_ok === true,
+        compression: row.compression || null,
+        archive_id: row.archive_id || null
+    };
 }
 
 async function getArchives(userId) {
